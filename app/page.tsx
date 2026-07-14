@@ -30,6 +30,7 @@ import IndexStrip from '@/components/IndexStrip';
 import TickerFooter from '@/components/TickerFooter';
 import AssetAllocation from '@/components/AssetAllocation';
 import GoldPanelMobile from '@/components/GoldPanelMobile';
+import ViewSwitch, { type ViewMode } from '@/components/ViewSwitch';
 import { IconFlame } from '@/components/icons';
 
 const STORAGE_FUNDS = 'fund-dashboard:codes';
@@ -76,6 +77,16 @@ export default function Page() {
     const v = new URLSearchParams(window.location.search).get('view');
     if (v === 'desktop' || v === 'mobile') setForceView(v);
   }, []);
+
+  // 视图切换：同步 state + URL，刷新后保持
+  const handleViewChange = (v: ViewMode) => {
+    setForceView(v);
+    if (typeof window === 'undefined') return;
+    const url = new URL(window.location.href);
+    if (v === 'auto') url.searchParams.delete('view');
+    else url.searchParams.set('view', v);
+    window.history.replaceState({}, '', url.toString());
+  };
 
   const [activeTab, setActiveTab] = useState<TabKey>('markets');
   const [searchOpen, setSearchOpen] = useState(false);
@@ -585,6 +596,11 @@ export default function Page() {
       </div>
 
       <BottomNav active={activeTab} onChange={onNav} />
+
+      {/* 手机端视图切换（桌面版 / 手机版），悬浮在底部导航上方 */}
+      <div className="fixed bottom-[4.5rem] right-3 z-[110]">
+        <ViewSwitch value={forceView} onChange={handleViewChange} variant="mobile" />
+      </div>
       </div>
 
       {/* 桌面端 — 严格匹配参考 index.html 布局结构 */}
@@ -592,7 +608,7 @@ export default function Page() {
         {/* 外层 flex 容器：main 滚动，footer 固定底部 */}
         <div className="flex flex-1 overflow-hidden">
           <main className="flex-1 overflow-y-auto bg-surface-dim relative">
-            {/* 浮动主题切换（参考 index.html 第169行） */}
+            {/* 浮动主题切换 + 视图切换（参考 index.html 第169行） */}
             <div className="fixed top-3 right-3 z-[100] flex items-center rounded-full border border-outline-variant bg-surface-container-low/80 p-1 shadow-lg backdrop-blur-md">
               <button className="flex h-8 w-8 items-center justify-center rounded-full transition-all hover:bg-primary-container" onClick={() => applyTheme('dark')} title="深蓝">
                 <span className="material-symbols-outlined text-[18px]">dark_mode</span>
@@ -603,6 +619,8 @@ export default function Page() {
               <button className="flex h-8 w-8 items-center justify-center rounded-full transition-all hover:bg-primary-container" onClick={() => applyTheme('eye')} title="护眼">
                 <span className="material-symbols-outlined text-[18px]">visibility</span>
               </button>
+              <span className="mx-0.5 h-5 w-px bg-outline-variant" />
+              <ViewSwitch value={forceView} onChange={handleViewChange} variant="desktop" />
             </div>
 
             {/* 指数行情条 — 匹配参考第181行，带底边框 */}
