@@ -1,0 +1,455 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="zh-CN"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>智汇金融终端 - Alpha Terminal</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=Hanken+Grotesk:wght@600;700&amp;family=JetBrains+Mono:wght@500&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<!-- Tailwind Config Injection -->
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+                "inverse-on-surface": "#283044",
+                "error": "#ffb4ab",
+                "on-primary-fixed": "#001356",
+                "error-container": "#93000a",
+                "surface-dim": "#0b1326",
+                "surface-container-highest": "#2d3449",
+                "secondary": "#ffb4aa",
+                "surface-variant": "#2d3449",
+                "secondary-container": "#a40209",
+                "on-error": "#690005",
+                "secondary-fixed": "#ffdad5",
+                "on-secondary-fixed-variant": "#930006",
+                "on-surface": "#dae2fd",
+                "on-tertiary": "#00391d",
+                "inverse-surface": "#dae2fd",
+                "surface-container-low": "#131b2e",
+                "on-primary-container": "#efefff",
+                "on-surface-variant": "#c4c5d9",
+                "background": "#0b1326",
+                "on-tertiary-container": "#c2ffd1",
+                "on-background": "#dae2fd",
+                "surface-container-lowest": "#060e20",
+                "secondary-fixed-dim": "#ffb4aa",
+                "on-primary": "#002388",
+                "outline": "#8e90a2",
+                "tertiary-fixed-dim": "#51df8e",
+                "outline-variant": "#434656",
+                "surface-bright": "#31394d",
+                "on-error-container": "#ffdad6",
+                "on-secondary-container": "#ffaea4",
+                "tertiary": "#51df8e",
+                "inverse-primary": "#124af0",
+                "primary-fixed": "#dde1ff",
+                "on-secondary": "#690003",
+                "surface-container": "#171f33",
+                "surface": "#0b1326",
+                "on-tertiary-fixed-variant": "#00522c",
+                "tertiary-fixed": "#70fda7",
+                "primary-container": "#2e5bff",
+                "tertiary-container": "#007e46",
+                "primary-fixed-dim": "#b8c3ff",
+                "primary": "#b8c3ff",
+                "on-primary-fixed-variant": "#0035be",
+                "on-secondary-fixed": "#410001",
+                "on-tertiary-fixed": "#00210e",
+                "surface-container-high": "#222a3d",
+                "surface-tint": "#b8c3ff",
+                "market-up": "#ffb4ab",
+                "market-down": "#51df8e"
+            },
+            "borderRadius": {
+                "DEFAULT": "0.125rem",
+                "lg": "0.25rem",
+                "xl": "0.5rem",
+                "full": "0.75rem"
+            },
+            "spacing": {
+                "container-padding": "16px",
+                "unit": "4px",
+                "gutter": "8px",
+                "component-gap": "12px"
+            },
+            "fontFamily": {
+                "body-sm": ["Inter"],
+                "display-lg": ["Hanken Grotesk"],
+                "label-caps": ["Inter"],
+                "display-sm": ["Hanken Grotesk"],
+                "body-md": ["Inter"],
+                "data-mono": ["JetBrains Mono"]
+            },
+            "fontSize": {
+                "body-sm": ["12px", {"lineHeight": "18px", "fontWeight": "400"}],
+                "display-lg": ["32px", {"lineHeight": "40px", "fontWeight": "700"}],
+                "label-caps": ["11px", {"lineHeight": "16px", "fontWeight": "600"}],
+                "display-sm": ["24px", {"lineHeight": "32px", "fontWeight": "600"}],
+                "body-md": ["14px", {"lineHeight": "20px", "fontWeight": "400"}],
+                "data-mono": ["13px", {"lineHeight": "16px", "letterSpacing": "-0.02em", "fontWeight": "500"}]
+            }
+          }
+        }
+      }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+            vertical-align: middle;
+        }
+        
+        .up-flash { animation: flash-red 1s ease-out; }
+        .down-flash { animation: flash-green 1s ease-out; }
+        
+        @keyframes flash-red {
+            0% { background-color: rgba(255, 180, 171, 0.3); }
+            100% { background-color: transparent; }
+        }
+        @keyframes flash-green {
+            0% { background-color: rgba(81, 223, 142, 0.3); }
+            100% { background-color: transparent; }
+        }
+
+        ::-webkit-scrollbar { width: 4px; height: 4px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #434656; border-radius: 2px; }
+        ::-webkit-scrollbar-thumb:hover { background: #8e90a2; }
+
+        body { transition: background-color 0.3s ease, color 0.3s ease; }
+
+        /* Mode: Eye-Care Theme Specifics */
+        .eye-care {
+            background-color: #fdf6e3 !important;
+            color: #586e75 !important;
+        }
+        .eye-care .bg-surface-container, 
+        .eye-care .bg-surface-container-low,
+        .eye-care .bg-surface-container-high,
+        .eye-care .bg-surface-container-highest,
+        .eye-care .bg-surface-container-lowest { 
+            background-color: #eee8d5 !important; 
+        }
+        .eye-care .bg-surface-dim { background-color: #fdf6e3 !important; }
+        .eye-care .text-on-surface,
+        .eye-care .text-on-background,
+        .eye-care .text-on-surface-variant { 
+            color: #586e75 !important; 
+        }
+        .eye-care .border-outline-variant,
+        .eye-care .border-outline {
+            border-color: #d5ccb2 !important;
+        }
+
+        /* Light Mode Overrides for High Density Professional Look */
+        html:not(.dark):not(.eye-care-mode) body {
+            background-color: #f8f9ff;
+            color: #1a1c1e;
+        }
+        html:not(.dark):not(.eye-care-mode) .bg-surface-container-low { background-color: #ffffff; }
+        html:not(.dark):not(.eye-care-mode) .bg-surface-container-high { background-color: #f0f4f8; }
+        html:not(.dark):not(.eye-care-mode) .bg-surface-container-lowest { background-color: #ffffff; }
+        html:not(.dark):not(.eye-care-mode) .bg-surface-container { background-color: #ffffff; }
+        html:not(.dark):not(.eye-care-mode) .bg-surface-dim { background-color: #f8f9ff; }
+        html:not(.dark):not(.eye-care-mode) .text-on-surface { color: #1a1c1e; }
+        html:not(.dark):not(.eye-care-mode) .text-on-surface-variant { color: #44474e; }
+        html:not(.dark):not(.eye-care-mode) .border-outline-variant { border-color: #dee2ec; }
+        html:not(.dark):not(.eye-care-mode) .market-up { color: #ba1a1a; }
+        html:not(.dark):not(.eye-care-mode) .market-down { color: #006d39; }
+    </style>
+</head>
+<body class="bg-background text-on-background font-body-md text-body-md overflow-hidden h-screen flex flex-col">
+<!-- Main Content Area (Full Width) -->
+<div class="flex flex-1 overflow-hidden">
+<main class="flex-1 overflow-y-auto bg-surface-dim relative">
+<!-- Floating Utility Bar for Theme Switching -->
+<div class="fixed top-3 right-3 z-[100] flex items-center bg-surface-container-low/80 backdrop-blur-md rounded-full p-1 border border-outline-variant shadow-lg">
+<button class="w-8 h-8 flex items-center justify-center rounded-full hover:bg-primary-container transition-all" onclick="setTheme('dark')" title="深蓝">
+<span class="material-symbols-outlined text-[18px]">dark_mode</span>
+</button>
+<button class="w-8 h-8 flex items-center justify-center rounded-full hover:bg-primary-container transition-all" onclick="setTheme('light')" title="明亮">
+<span class="material-symbols-outlined text-[18px]">light_mode</span>
+</button>
+<button class="w-8 h-8 flex items-center justify-center rounded-full hover:bg-primary-container transition-all" onclick="setTheme('eye')" title="护眼">
+<span class="material-symbols-outlined text-[18px]">visibility</span>
+</button>
+</div>
+<!-- Global Indices Top Row -->
+<section class="p-gutter border-b border-outline-variant bg-surface-container-lowest grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-gutter">
+<div class="bg-surface-container p-3 rounded-lg border border-outline-variant up-flash">
+<div class="flex justify-between items-start mb-1">
+<span class="text-on-surface-variant text-body-sm font-body-sm">上证指数</span>
+<span class="text-market-up font-data-mono text-data-mono">+1.24%</span>
+</div>
+<div class="text-market-up font-display-sm text-display-sm">3,244.56</div>
+<div class="text-[10px] text-on-surface-variant font-data-mono">成交: 4,521.4亿</div>
+</div>
+<div class="bg-surface-container p-3 rounded-lg border border-outline-variant down-flash">
+<div class="flex justify-between items-start mb-1">
+<span class="text-on-surface-variant text-body-sm font-body-sm">深证成指</span>
+<span class="text-market-down font-data-mono text-data-mono">-0.45%</span>
+</div>
+<div class="text-market-down font-display-sm text-display-sm">11,034.12</div>
+<div class="text-[10px] text-on-surface-variant font-data-mono">成交: 6,102.8亿</div>
+</div>
+<div class="bg-surface-container p-3 rounded-lg border border-outline-variant">
+<div class="flex justify-between items-start mb-1">
+<span class="text-on-surface-variant text-body-sm font-body-sm">恒生指数</span>
+<span class="text-market-up font-data-mono text-data-mono">+0.88%</span>
+</div>
+<div class="text-market-up font-display-sm text-display-sm">19,452.10</div>
+<div class="text-[10px] text-on-surface-variant font-data-mono">成交: 1,120.5亿</div>
+</div>
+<div class="bg-surface-container p-3 rounded-lg border border-outline-variant">
+<div class="flex justify-between items-start mb-1">
+<span class="text-on-surface-variant text-body-sm font-body-sm">纳斯达克</span>
+<span class="text-market-up font-data-mono text-data-mono">+2.15%</span>
+</div>
+<div class="text-market-up font-display-sm text-display-sm">15,445.28</div>
+<div class="text-[10px] text-on-surface-variant font-data-mono">盘前交易中</div>
+</div>
+<div class="bg-surface-container p-3 rounded-lg border border-outline-variant">
+<div class="flex justify-between items-start mb-1">
+<span class="text-on-surface-variant text-body-sm font-body-sm">标普500</span>
+<span class="text-market-up font-data-mono text-data-mono">+0.56%</span>
+</div>
+<div class="text-market-up font-display-sm text-display-sm">5,029.73</div>
+<div class="text-[10px] text-on-surface-variant font-data-mono">盘前交易中</div>
+</div>
+</section>
+<!-- Layout: Dashboard Panels (Full Width) -->
+<div class="grid grid-cols-12 gap-gutter p-gutter h-[calc(100%-80px)]">
+<!-- Left: My Funds Table -->
+<section class="col-span-12 lg:col-span-8 flex flex-col gap-gutter">
+<div class="bg-surface-container-low rounded-xl border border-outline-variant flex flex-col flex-1 overflow-hidden shadow-sm">
+<div class="p-4 flex justify-between items-center border-b border-outline-variant bg-surface-container-high">
+<h2 class="font-display-sm text-display-sm text-on-surface">我的持仓 (My Portfolio)</h2>
+<div class="flex gap-2">
+<button class="px-3 py-1 bg-primary text-on-primary rounded text-body-sm hover:opacity-90 transition-all">新增持仓</button>
+<button class="px-3 py-1 border border-outline text-on-surface-variant rounded text-body-sm hover:bg-surface-container-highest transition-all">导出</button><button class="px-3 py-1 border border-outline text-on-surface-variant rounded text-body-sm hover:bg-surface-container-highest transition-all">导入</button>
+</div>
+</div>
+<div class="overflow-auto flex-1">
+<table class="w-full text-left font-body-md border-collapse">
+<thead class="sticky top-0 bg-surface-container-highest text-on-surface-variant text-label-caps border-b border-outline-variant">
+<tr>
+<th class="p-3">代码</th>
+<th class="p-3">基金名称</th>
+<th class="p-3">净值</th>
+<th class="p-3">日涨幅</th>
+<th class="p-3">持有市值</th>
+<th class="p-3">累计盈亏</th>
+<th class="p-3">操作</th>
+</tr>
+</thead>
+<tbody class="divide-y divide-outline-variant">
+<tr class="hover:bg-surface-container-high transition-colors">
+<td class="p-3 font-data-mono">001594</td>
+<td class="p-3 text-on-surface">天弘中证计算机C</td>
+<td class="p-3 font-data-mono">1.4520</td>
+<td class="p-3 text-market-up font-data-mono">+3.21%</td>
+<td class="p-3 font-data-mono">¥24,152.00</td>
+<td class="p-3 text-market-up font-data-mono">+¥4,201.12</td>
+<td class="p-3">
+<span class="material-symbols-outlined text-primary cursor-pointer">analytics</span>
+</td>
+</tr>
+<tr class="bg-surface-container-lowest/30 hover:bg-surface-container-high transition-colors">
+<td class="p-3 font-data-mono">161725</td>
+<td class="p-3 text-on-surface">招商中证白酒指数A</td>
+<td class="p-3 font-data-mono">0.8924</td>
+<td class="p-3 text-market-down font-data-mono">-1.54%</td>
+<td class="p-3 font-data-mono">¥52,800.00</td>
+<td class="p-3 text-market-down font-data-mono">-¥8,452.40</td>
+<td class="p-3">
+<span class="material-symbols-outlined text-primary cursor-pointer">analytics</span>
+</td>
+</tr>
+<tr class="hover:bg-surface-container-high transition-colors">
+<td class="p-3 font-data-mono">005827</td>
+<td class="p-3 text-on-surface">易方达蓝筹精选</td>
+<td class="p-3 font-data-mono">2.1040</td>
+<td class="p-3 text-market-up font-data-mono">+0.45%</td>
+<td class="p-3 font-data-mono">¥112,040.00</td>
+<td class="p-3 text-market-up font-data-mono">+¥12,450.00</td>
+<td class="p-3">
+<span class="material-symbols-outlined text-primary cursor-pointer">analytics</span>
+</td>
+</tr>
+<tr class="bg-surface-container-lowest/30 hover:bg-surface-container-high transition-colors">
+<td class="p-3 font-data-mono">510300</td>
+<td class="p-3 text-on-surface">华泰柏瑞沪深300ETF</td>
+<td class="p-3 font-data-mono">3.4120</td>
+<td class="p-3 text-market-up font-data-mono">+1.12%</td>
+<td class="p-3 font-data-mono">¥15,200.00</td>
+<td class="p-3 text-market-up font-data-mono">+¥1,230.50</td>
+<td class="p-3">
+<span class="material-symbols-outlined text-primary cursor-pointer">analytics</span>
+</td>
+</tr>
+<tr class="hover:bg-surface-container-high transition-colors">
+<td class="p-3 font-data-mono">000001</td>
+<td class="p-3 text-on-surface">华夏成长</td>
+<td class="p-3 font-data-mono">1.1020</td>
+<td class="p-3 text-market-down font-data-mono">-0.24%</td>
+<td class="p-3 font-data-mono">¥8,400.00</td>
+<td class="p-3 text-market-down font-data-mono">-¥542.10</td>
+<td class="p-3">
+<span class="material-symbols-outlined text-primary cursor-pointer">analytics</span>
+</td>
+</tr>
+<tr class="bg-surface-container-lowest/30 hover:bg-surface-container-high transition-colors"><td class="p-3 font-data-mono">XAUUSD</td><td class="p-3 text-on-surface">伦敦金 (现货)</td><td class="p-3 font-data-mono">2,034.42</td><td class="p-3 text-market-up font-data-mono">+0.61%</td><td class="p-3 font-data-mono">¥145,200.00</td><td class="p-3 text-market-up font-data-mono">+¥8,240.00</td><td class="p-3"><span class="material-symbols-outlined text-primary cursor-pointer">analytics</span></td></tr></tbody>
+</table>
+</div>
+</div>
+</section>
+<!-- Right Sidebar sections -->
+<aside class="col-span-12 lg:col-span-4 flex flex-col gap-gutter h-full">
+<!-- Sectors -->
+<div class="bg-surface-container-low rounded-xl border border-outline-variant flex flex-col h-1/2 overflow-hidden shadow-sm">
+<div class="p-4 border-b border-outline-variant flex justify-between items-center bg-surface-container-high">
+<h2 class="font-display-sm text-display-sm text-on-surface">热门板块 (Sectors)</h2>
+<span class="material-symbols-outlined text-on-surface-variant cursor-pointer">more_vert</span>
+</div>
+<div class="flex-1 overflow-auto p-2">
+<div class="grid grid-cols-1 gap-2">
+<div class="p-3 rounded bg-surface-container hover:bg-surface-container-highest border border-outline-variant transition-all cursor-pointer">
+<div class="flex justify-between items-center">
+<span class="font-body-md">半导体/芯片</span>
+<span class="text-market-up font-data-mono">+4.82%</span>
+</div>
+<div class="mt-2 h-1 w-full bg-surface-container-lowest rounded-full overflow-hidden">
+<div class="h-full bg-market-up" style="width: 85%"></div>
+</div>
+</div>
+<div class="p-3 rounded bg-surface-container hover:bg-surface-container-highest border border-outline-variant transition-all cursor-pointer">
+<div class="flex justify-between items-center">
+<span class="font-body-md">人工智能 (AI)</span>
+<span class="text-market-up font-data-mono">+3.41%</span>
+</div>
+<div class="mt-2 h-1 w-full bg-surface-container-lowest rounded-full overflow-hidden">
+<div class="h-full bg-market-up" style="width: 72%"></div>
+</div>
+</div>
+<div class="p-3 rounded bg-surface-container hover:bg-surface-container-highest border border-outline-variant transition-all cursor-pointer">
+<div class="flex justify-between items-center">
+<span class="font-body-md">新能源车</span>
+<span class="text-market-down font-data-mono">-1.24%</span>
+</div>
+<div class="mt-2 h-1 w-full bg-surface-container-lowest rounded-full overflow-hidden">
+<div class="h-full bg-market-down" style="width: 45%"></div>
+</div>
+</div>
+<div class="p-3 rounded bg-surface-container hover:bg-surface-container-highest border border-outline-variant transition-all cursor-pointer">
+<div class="flex justify-between items-center">
+<span class="font-body-md">医疗器械</span>
+<span class="text-market-down font-data-mono">-0.67%</span>
+</div>
+<div class="mt-2 h-1 w-full bg-surface-container-lowest rounded-full overflow-hidden">
+<div class="h-full bg-market-down" style="width: 58%"></div>
+</div>
+</div>
+</div>
+</div>
+</div>
+<!-- Gold & Metals -->
+<div class="bg-surface-container-low rounded-xl border border-outline-variant flex flex-col h-1/2 overflow-hidden shadow-sm">
+<div class="p-4 border-b border-outline-variant bg-surface-container-high flex justify-between items-center">
+<h2 class="font-display-sm text-display-sm text-on-surface">贵金属 (Gold &amp; Metals)</h2>
+<div class="flex items-center gap-1 text-label-caps text-on-tertiary-container bg-tertiary-container px-2 py-0.5 rounded">
+<span class="material-symbols-outlined text-[14px]">bolt</span>
+                            实时
+                        </div>
+</div>
+<div class="flex-1 p-4 flex flex-col gap-4">
+<div class="flex items-end justify-between">
+<div>
+<div class="text-on-surface-variant text-body-sm font-body-sm mb-1">伦敦金 (XAUUSD)</div>
+<div class="text-display-lg font-display-lg text-on-surface">2,034.42</div>
+</div>
+<div class="text-right">
+<div class="text-market-up font-data-mono text-display-sm">+12.42</div>
+<div class="text-market-up font-data-mono text-body-md">+0.61%</div>
+</div>
+</div>
+<div class="relative h-24 w-full bg-surface-container rounded border border-outline-variant overflow-hidden">
+<div class="absolute inset-0 flex items-center justify-center">
+<div class="text-label-caps text-on-surface-variant">价格走势实时分析...</div>
+</div>
+</div>
+<div class="grid grid-cols-2 gap-2 mt-auto">
+<div class="bg-surface-container p-2 rounded">
+<div class="text-[10px] text-on-surface-variant uppercase">最高</div>
+<div class="text-body-md font-data-mono">2,045.10</div>
+</div>
+<div class="bg-surface-container p-2 rounded">
+<div class="text-[10px] text-on-surface-variant uppercase">最低</div>
+<div class="text-body-md font-data-mono">2,022.50</div>
+</div>
+</div>
+</div>
+</div>
+</aside>
+</div>
+</main>
+</div>
+<!-- Ticker Footer -->
+<footer class="h-6 bg-surface-container-lowest border-t border-outline-variant flex items-center px-4 overflow-hidden gap-8">
+<div class="flex items-center gap-2 flex-shrink-0">
+<span class="text-label-caps font-label-caps text-on-surface-variant">状态:</span>
+<span class="text-tertiary font-data-mono text-[10px]">已连接 (23ms)</span>
+</div>
+<div class="flex items-center gap-6 animate-marquee whitespace-nowrap overflow-hidden">
+<div class="flex gap-4">
+<span class="text-on-surface-variant text-[11px]">美股休市中 | 欧股全面上涨 | 离岸人民币: 7.1952 (-0.02%) | 原油: 78.45 (+0.45%) | 比特币: 51,240 (-1.2%)</span>
+<span class="text-on-surface-variant text-[11px]">美股休市中 | 欧股全面上涨 | 离岸人民币: 7.1952 (-0.02%) | 原油: 78.45 (+0.45%) | 比特币: 51,240 (-1.2%)</span>
+</div>
+</div>
+</footer>
+<script>
+    function setTheme(mode) {
+        const html = document.documentElement;
+        const body = document.body;
+        
+        // Reset classes
+        body.classList.remove('eye-care');
+        html.classList.remove('dark');
+        html.classList.remove('eye-care-mode');
+        
+        if (mode === 'dark') {
+            html.classList.add('dark');
+        } else if (mode === 'light') {
+            // No class needed, defaults to light via Tailwind and CSS overrides
+        } else if (mode === 'eye') {
+            body.classList.add('eye-care');
+            html.classList.add('eye-care-mode');
+        }
+    }
+
+    // Random Flashing Simulation for high-density feel
+    setInterval(() => {
+        const rows = document.querySelectorAll('tr');
+        const randomRow = rows[Math.floor(Math.random() * rows.length)];
+        if (!randomRow) return;
+        const changeCell = randomRow.querySelector('.text-market-up, .text-market-down');
+        if (changeCell) {
+            const isUp = changeCell.classList.contains('text-market-up');
+            const flashClass = isUp ? 'up-flash' : 'down-flash';
+            randomRow.classList.add(flashClass);
+            setTimeout(() => randomRow.classList.remove(flashClass), 1000);
+        }
+    }, 3000);
+</script>
+<style>
+    @keyframes marquee {
+        0% { transform: translateX(0); }
+        100% { transform: translateX(-50%); }
+    }
+    .animate-marquee {
+        animation: marquee 40s linear infinite;
+    }
+</style>
+</body></html>

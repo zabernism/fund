@@ -1,0 +1,597 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ===================================================================
+   主题变量
+   - 默认（:root）= 浅色（白色）主题
+   - [data-theme="dark"] = 强制深色
+   - 跟随系统：无属性 或 data-theme="system"，由 prefers-color-scheme 决定
+   两套设计系统：TERMINAL.A（移动端）与 ALPHA（桌面端）各有独立命名空间，
+   但都按主题切换。
+   =================================================================== */
+:root {
+  /* —— TERMINAL.A 浅色（默认） —— */
+  --bg: #eef1f6;
+  --surface: #ffffff;
+  --surface-2: #e7ebf2;
+  --card: rgba(17, 24, 39, 0.03);
+  --card-hover: rgba(17, 24, 39, 0.06);
+  --border: rgba(17, 24, 39, 0.10);
+  --border-strong: rgba(17, 24, 39, 0.18);
+  --text: #131720;
+  --muted: #6b7280;
+  --primary: #3b4a6b;
+  --on-primary: #ffffff;
+  --market-up: #dc2626;
+  --market-down: #059669;
+  --cost: #d97706;
+  --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Consolas,
+    monospace;
+
+  /* —— ALPHA 浅色（Material 3 角色令牌，对齐参考设计「智汇金融终端」） —— */
+  --al-bg: #f8f9ff;
+  --al-surface: #ffffff;
+  --al-surface-dim: #f8f9ff;
+  --al-surface-bright: #e9eef5;
+  --al-sc-low: #ffffff;
+  --al-sc: #ffffff;
+  --al-sc-high: #f0f4f8;
+  --al-sc-highest: #e9eef5;
+  --al-sc-lowest: #ffffff;
+  --al-sv: #e1e3ea;
+  --al-surface-tint: #0035be;
+  --al-primary: #0035be;
+  --al-on-primary: #ffffff;
+  --al-primary-container: #dde1ff;
+  --al-on-primary-container: #001356;
+  --al-secondary: #b3261e;
+  --al-on-secondary: #ffffff;
+  --al-secondary-container: #ffdad6;
+  --al-on-secondary-container: #410002;
+  --al-tertiary: #006d39;
+  --al-on-tertiary: #ffffff;
+  --al-tertiary-container: #a6f0c4;
+  --al-on-tertiary-container: #00210e;
+  --al-on-surface: #1a1c1e;
+  --al-on-surface-variant: #44474e;
+  --al-inverse-on-surface: #dee2f8;
+  --al-inverse-surface: #2e3138;
+  --al-outline: #73787e;
+  --al-outline-variant: #dee2ec;
+  --al-inverse-primary: #b8c3ff;
+  --al-market-up: #ba1a1a;
+  --al-market-down: #006d39;
+  --al-cost: #8a5300;
+  --al-error: #ba1a1a;
+  --al-on-error: #ffffff;
+  --al-error-container: #ffdad6;
+  --al-on-error-container: #410002;
+  --price-up: #ba1a1a;
+  --price-down: #006d39;
+
+  color-scheme: light;
+}
+
+/* —— 深色变量（[data-theme="dark"] 强制深色，以及系统深色时） —— */
+[data-theme='dark'] {
+  /* TERMINAL.A 深色 */
+  --bg: #0a0b0d;
+  --surface: #131315;
+  --surface-2: #17181b;
+  --card: rgba(255, 255, 255, 0.035);
+  --card-hover: rgba(255, 255, 255, 0.06);
+  --border: rgba(255, 255, 255, 0.08);
+  --border-strong: rgba(255, 255, 255, 0.16);
+  --text: #e9ebf0;
+  --muted: #8b919e;
+  --primary: #bec6e0;
+  --on-primary: #0a0b0d;
+  --market-up: #ef4444;
+  --market-down: #10b981;
+  --cost: #f59e0b;
+
+  /* ALPHA 深色（Material 3 角色令牌，对齐参考设计） */
+  --al-bg: #0b1326;
+  --al-surface: #0b1326;
+  --al-surface-dim: #0b1326;
+  --al-surface-bright: #31394d;
+  --al-sc-low: #131b2e;
+  --al-sc: #171f33;
+  --al-sc-high: #222a3d;
+  --al-sc-highest: #2d3449;
+  --al-sc-lowest: #060e20;
+  --al-sv: #2d3449;
+  --al-surface-tint: #b8c3ff;
+  --al-primary: #b8c3ff;
+  --al-on-primary: #002388;
+  --al-primary-container: #2e5bff;
+  --al-on-primary-container: #efefff;
+  --al-secondary: #ffb4aa;
+  --al-on-secondary: #690003;
+  --al-secondary-container: #a40209;
+  --al-on-secondary-container: #ffaea4;
+  --al-tertiary: #51df8e;
+  --al-on-tertiary: #00391d;
+  --al-tertiary-container: #007e46;
+  --al-on-tertiary-container: #c2ffd1;
+  --al-on-surface: #dae2fd;
+  --al-on-surface-variant: #c4c5d9;
+  --al-inverse-on-surface: #283044;
+  --al-inverse-surface: #dae2fd;
+  --al-outline: #8e90a2;
+  --al-outline-variant: #434656;
+  --al-inverse-primary: #124af0;
+  --al-market-up: #ffb4ab;
+  --al-market-down: #51df8e;
+  --al-cost: #ffd8a8;
+  --al-error: #ffb4ab;
+  --al-on-error: #690005;
+  --al-error-container: #93000a;
+  --al-on-error-container: #ffdad6;
+  --price-up: #ffb4ab;
+  --price-down: #51df8e;
+
+  color-scheme: dark;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']):not([data-theme='dark']):not([data-theme='eye']) {
+    --bg: #0a0b0d;
+    --surface: #131315;
+    --surface-2: #17181b;
+    --card: rgba(255, 255, 255, 0.035);
+    --card-hover: rgba(255, 255, 255, 0.06);
+    --border: rgba(255, 255, 255, 0.08);
+    --border-strong: rgba(255, 255, 255, 0.16);
+    --text: #e9ebf0;
+    --muted: #8b919e;
+    --primary: #bec6e0;
+    --on-primary: #0a0b0d;
+    --market-up: #ef4444;
+    --market-down: #10b981;
+    --cost: #f59e0b;
+
+    --al-bg: #0b1326;
+    --al-surface: #0b1326;
+    --al-surface-dim: #0b1326;
+    --al-surface-bright: #31394d;
+    --al-sc-low: #131b2e;
+    --al-sc: #171f33;
+    --al-sc-high: #222a3d;
+    --al-sc-highest: #2d3449;
+    --al-sc-lowest: #060e20;
+    --al-sv: #2d3449;
+    --al-surface-tint: #b8c3ff;
+    --al-primary: #b8c3ff;
+    --al-on-primary: #002388;
+    --al-primary-container: #2e5bff;
+    --al-on-primary-container: #efefff;
+    --al-secondary: #ffb4aa;
+    --al-on-secondary: #690003;
+    --al-secondary-container: #a40209;
+    --al-on-secondary-container: #ffaea4;
+    --al-tertiary: #51df8e;
+    --al-on-tertiary: #00391d;
+    --al-tertiary-container: #007e46;
+    --al-on-tertiary-container: #c2ffd1;
+    --al-on-surface: #dae2fd;
+    --al-on-surface-variant: #c4c5d9;
+    --al-inverse-on-surface: #283044;
+    --al-inverse-surface: #dae2fd;
+    --al-outline: #8e90a2;
+    --al-outline-variant: #434656;
+    --al-inverse-primary: #124af0;
+    --al-market-up: #ffb4ab;
+    --al-market-down: #51df8e;
+    --al-cost: #ffd8a8;
+    --al-error: #ffb4ab;
+    --al-on-error: #690005;
+    --al-error-container: #93000a;
+    --al-on-error-container: #ffdad6;
+    --price-up: #ffb4ab;
+    --price-down: #51df8e;
+
+    color-scheme: dark;
+  }
+}
+
+/* —— 护眼（eye-care，Solarized 浅色） —— */
+[data-theme='eye'] {
+  /* TERMINAL.A 护眼 */
+  --bg: #fdf6e3;
+  --surface: #eee8d5;
+  --surface-2: #eee8d5;
+  --card: rgba(88, 110, 117, 0.06);
+  --card-hover: rgba(88, 110, 117, 0.10);
+  --border: #d5ccb2;
+  --border-strong: #c9bf9f;
+  --text: #586e75;
+  --muted: #6b7c74;
+  --primary: #268bd2;
+  --on-primary: #fdf6e3;
+  --market-up: #dc322f;
+  --market-down: #859900;
+  --cost: #b58900;
+
+  /* ALPHA 护眼 */
+  --al-bg: #fdf6e3;
+  --al-surface: #eee8d5;
+  --al-surface-dim: #fdf6e3;
+  --al-surface-bright: #eee8d5;
+  --al-sc-low: #eee8d5;
+  --al-sc: #eee8d5;
+  --al-sc-high: #eee8d5;
+  --al-sc-highest: #eee8d5;
+  --al-sc-lowest: #fdf6e3;
+  --al-sv: #eee8d5;
+  --al-surface-tint: #268bd2;
+  --al-primary: #268bd2;
+  --al-on-primary: #073642;
+  --al-primary-container: #eee8d5;
+  --al-on-primary-container: #268bd2;
+  --al-secondary: #cb4b16;
+  --al-on-secondary: #fdf6e3;
+  --al-secondary-container: #eee8d5;
+  --al-on-secondary-container: #cb4b16;
+  --al-tertiary: #859900;
+  --al-on-tertiary: #fdf6e3;
+  --al-tertiary-container: #eee8d5;
+  --al-on-tertiary-container: #859900;
+  --al-on-surface: #586e75;
+  --al-on-surface-variant: #586e75;
+  --al-inverse-on-surface: #fdf6e3;
+  --al-inverse-surface: #586e75;
+  --al-outline: #d5ccb2;
+  --al-outline-variant: #d5ccb2;
+  --al-inverse-primary: #268bd2;
+  --al-market-up: #dc322f;
+  --al-market-down: #859900;
+  --al-cost: #b58900;
+  --al-error: #dc322f;
+  --al-on-error: #fdf6e3;
+  --al-error-container: #eee8d5;
+  --al-on-error-container: #dc322f;
+  --price-up: #dc322f;
+  --price-down: #859900;
+
+  color-scheme: light;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  padding: 0;
+  margin: 0;
+  background-color: var(--bg);
+  color: var(--text);
+  font-family: Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI',
+    'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+body {
+  background-image: radial-gradient(
+      1200px 600px at 50% -12%,
+      color-mix(in srgb, var(--primary) 9%, transparent),
+      transparent 60%
+    ),
+    radial-gradient(
+      900px 500px at 100% 0%,
+      color-mix(in srgb, var(--market-up) 6%, transparent),
+      transparent 55%
+    );
+  background-attachment: fixed;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+.spin {
+  animation: spin 0.8s linear infinite;
+}
+
+/* 自定义滚动条 */
+::-webkit-scrollbar {
+  width: 7px;
+  height: 7px;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--border-strong);
+  border-radius: 4px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+/* 顶部品牌细线 */
+.top-accent {
+  height: 2px;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    var(--market-up),
+    var(--cost),
+    var(--primary),
+    transparent
+  );
+}
+
+/* 玻璃面板 */
+.glass {
+  background: var(--card);
+  border: 1px solid var(--border);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border-radius: 1rem;
+}
+.glass-soft {
+  background: var(--card-hover);
+  border: 1px solid var(--border);
+  border-radius: 0.85rem;
+}
+
+/* 等宽数字字体（行情数据） */
+.font-mono-data {
+  font-family: var(--font-mono);
+  font-feature-settings: 'tnum' 1, 'zero' 1;
+  letter-spacing: -0.01em;
+}
+
+/* 实时数值闪烁（涨红跌绿） */
+.flash-cell {
+  display: inline-block;
+  padding: 1px 5px;
+  border-radius: 7px;
+  transition: background-color 0.25s ease;
+}
+@keyframes flashUp {
+  0% {
+    background-color: color-mix(in srgb, var(--market-up) 28%, transparent);
+  }
+  100% {
+    background-color: transparent;
+  }
+}
+@keyframes flashDown {
+  0% {
+    background-color: color-mix(in srgb, var(--market-down) 26%, transparent);
+  }
+  100% {
+    background-color: transparent;
+  }
+}
+.flash-up {
+  animation: flashUp 0.65s ease-out;
+}
+.flash-down {
+  animation: flashDown 0.65s ease-out;
+}
+
+/* 实时状态脉冲点（交易中=红 / 收盘=灰） */
+@keyframes livePulse {
+  0% {
+    box-shadow: 0 0 0 0 color-mix(in srgb, var(--market-up) 55%, transparent);
+  }
+  70% {
+    box-shadow: 0 0 0 6px color-mix(in srgb, var(--market-up) 0%, transparent);
+  }
+  100% {
+    box-shadow: 0 0 0 0 color-mix(in srgb, var(--market-up) 0%, transparent);
+  }
+}
+.live-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 9999px;
+  background: var(--market-up);
+  animation: livePulse 1.8s infinite;
+  flex-shrink: 0;
+}
+.live-dot.closed {
+  background: var(--muted);
+  animation: none;
+}
+
+/* 搜索 / 设置 浮层动画 */
+@keyframes overlayIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+@keyframes sheetUp {
+  from {
+    transform: translateY(100%);
+  }
+  to {
+    transform: translateY(0);
+  }
+}
+.overlay-fade {
+  animation: overlayIn 0.18s ease-out;
+}
+.sheet-up {
+  animation: sheetUp 0.26s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* 隐藏横向滚动条但保留滚动（板块热力图） */
+.no-scrollbar {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+/* ===================================================================
+   ALPHA TERMINAL — 桌面端（lg 及以上）设计系统
+   Material 3 配色 + 等宽数据字体 + Material Symbols 图标
+   颜色变量由主题（:root / [data-theme]）统一提供。
+   =================================================================== */
+.alpha {
+  background: var(--al-bg);
+  color: var(--al-on-surface);
+  min-height: 100vh;
+  font-family: Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI',
+    'PingFang SC', 'Microsoft YaHei', sans-serif;
+}
+
+.glass-panel {
+  background: var(--al-sc);
+  border: 1px solid var(--al-outline-variant);
+  border-radius: 0.5rem;
+}
+
+.alpha-navbar {
+  background: color-mix(in srgb, var(--al-bg) 72%, transparent);
+}
+
+.price-up {
+  color: var(--price-up);
+}
+.price-down {
+  color: var(--price-down);
+}
+
+.label-caps {
+  font-size: 10px;
+  line-height: 12px;
+  letter-spacing: 0.05em;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+.data-lg {
+  font-family: var(--font-mono);
+  font-size: 18px;
+  line-height: 24px;
+  font-weight: 600;
+  font-feature-settings: 'tnum' 1;
+}
+.data-md {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  line-height: 18px;
+  font-weight: 500;
+  font-feature-settings: 'tnum' 1;
+}
+.data-sm {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  line-height: 16px;
+  font-weight: 400;
+}
+.body-md {
+  font-size: 14px;
+  line-height: 20px;
+  font-weight: 400;
+}
+.headline-md {
+  font-family: 'Hanken Grotesk', Inter, -apple-system, sans-serif;
+  font-size: 20px;
+  line-height: 28px;
+  font-weight: 600;
+}
+.display-lg {
+  font-family: 'Hanken Grotesk', Inter, -apple-system, sans-serif;
+  font-size: 32px;
+  line-height: 40px;
+  letter-spacing: -0.02em;
+  font-weight: 700;
+}
+
+.text-gradient-alpha {
+  background: linear-gradient(90deg, var(--al-secondary), var(--al-tertiary));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.pulse-indicator {
+  width: 8px;
+  height: 8px;
+  border-radius: 9999px;
+  background: var(--al-tertiary);
+  animation: pulseGreen 1.8s infinite;
+  flex-shrink: 0;
+}
+@keyframes pulseGreen {
+  0% {
+    box-shadow: 0 0 0 0 color-mix(in srgb, var(--al-tertiary) 50%, transparent);
+  }
+  70% {
+    box-shadow: 0 0 0 6px color-mix(in srgb, var(--al-tertiary) 0%, transparent);
+  }
+  100% {
+    box-shadow: 0 0 0 0 color-mix(in srgb, var(--al-tertiary) 0%, transparent);
+  }
+}
+
+.dashed-line {
+  border-top: 1px dashed var(--al-outline-variant);
+}
+
+.material-symbols-outlined {
+  font-family: 'Material Symbols Outlined';
+  font-weight: normal;
+  font-style: normal;
+  line-height: 1;
+  letter-spacing: normal;
+  text-transform: none;
+  white-space: nowrap;
+  direction: ltr;
+  -webkit-font-feature-settings: 'liga';
+  -webkit-font-smoothing: antialiased;
+  font-variation-settings: 'FILL' 0, 'wght' 400;
+}
+
+.alpha .custom-scrollbar::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+.alpha .custom-scrollbar::-webkit-scrollbar-thumb {
+  background: var(--al-outline-variant);
+  border-radius: 4px;
+}
+.alpha .custom-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+/* 实时数值闪烁（ALPHA 配色：涨红 / 跌绿，随主题切换） */
+.flash-red {
+  animation: flashRed 0.8s ease-out;
+}
+.flash-green {
+  animation: flashGreen 0.8s ease-out;
+}
+/* 参考设计卡片闪烁（涨红 / 跌绿，背景闪） */
+.up-flash {
+  animation: flashRed 1s ease-out;
+}
+.down-flash {
+  animation: flashGreen 1s ease-out;
+}
+@keyframes flashRed {
+  0% {
+    background-color: color-mix(in srgb, var(--price-up) 22%, transparent);
+  }
+  100% {
+    background-color: transparent;
+  }
+}
+@keyframes flashGreen {
+  0% {
+    background-color: color-mix(in srgb, var(--price-down) 20%, transparent);
+  }
+  100% {
+    background-color: transparent;
+  }
+}
