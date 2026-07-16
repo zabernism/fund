@@ -130,6 +130,8 @@ export default function DesktopHoldings({
   onCancelEdit,
   onRemove,
   onAddFund,
+  todayPnL,
+  todayPct,
 }: {
   codes: string[];
   funds: Record<string, FundEstimate>;
@@ -144,6 +146,8 @@ export default function DesktopHoldings({
   onCancelEdit: () => void;
   onRemove: (code: string) => void;
   onAddFund?: () => void;
+  todayPnL?: number | null;
+  todayPct?: number | null;
 }) {
   const totalMarketValue = codes.reduce((s, c) => s + (costMap[c]?.amount ?? 0), 0);
   const totalCost = codes.reduce((s, c) => {
@@ -170,9 +174,17 @@ export default function DesktopHoldings({
           <h2 className="text-base font-bold text-on-surface">我的持仓</h2>
         </div>
         <div className="flex items-center gap-3">
-          <span className="text-xs text-on-surface-variant">
-            {codes.length} 只 · 总成本 ¥{formatNum(totalCost, 0)}
-          </span>
+          <div className="flex flex-col items-end">
+            <span className="text-xs text-on-surface-variant">
+              {codes.length} 只 · 总成本 ¥{formatNum(totalCost, 0)}
+            </span>
+            {todayPnL != null && (
+              <span className={`text-xs font-medium ${pnlColor(todayPnL)}`}>
+                当日盈亏 {todayPnL >= 0 ? '+' : ''}¥{formatNum(todayPnL)}
+                {todayPct != null ? ` · 当日收益 ${formatPct(todayPct)}` : ''}
+              </span>
+            )}
+          </div>
           {onAddFund && (
             <button
               onClick={onAddFund}
@@ -206,6 +218,10 @@ export default function DesktopHoldings({
             profit != null && costBasis != null && costBasis > 0
               ? (profit / costBasis) * 100
               : null;
+          // 当日涨幅（来自估值接口 changePct）+ 当日盈亏 = 持仓市值 × 涨幅
+          const dailyPct = f?.changePct ?? null;
+          const dailyPnl =
+            amount != null && dailyPct != null ? (amount * dailyPct) / 100 : null;
 
           const expanded = expandedFund === code;
           const mode = trendMode[code] ?? 'curve';
@@ -238,6 +254,11 @@ export default function DesktopHoldings({
                   <div className="text-[11px] text-on-surface-variant">
                     {code} · 市值 ¥{amount != null ? formatNum(amount) : '—'}
                   </div>
+                  {dailyPnl != null && (
+                    <div className={`text-[10px] ${pnlColor(dailyPnl)}`}>
+                      当日 {dailyPnl >= 0 ? '+' : ''}¥{formatNum(dailyPnl)}（{formatPct(dailyPct)}）
+                    </div>
+                  )}
                 </div>
                 <div className="shrink-0 text-right">
                   <div
@@ -271,12 +292,24 @@ export default function DesktopHoldings({
                       </p>
                     </div>
                     <div>
-                      <p className="text-label-caps mb-1 text-on-surface-variant">累计盈亏</p>
-                      <p className={`font-mono-data text-lg ${pnlColor(profit)}`}>
-                        {profit != null ? `${profit >= 0 ? '+' : ''}${formatNum(profit)}` : '—'}
-                      </p>
-                    </div>
+                    <p className="text-label-caps mb-1 text-on-surface-variant">累计盈亏</p>
+                    <p className={`font-mono-data text-lg ${pnlColor(profit)}`}>
+                      {profit != null ? `${profit >= 0 ? '+' : ''}${formatNum(profit)}` : '—'}
+                    </p>
                   </div>
+                  <div>
+                    <p className="text-label-caps mb-1 text-on-surface-variant">当日盈亏</p>
+                    <p className={`font-mono-data text-lg ${pnlColor(dailyPnl)}`}>
+                      {dailyPnl != null ? `${dailyPnl >= 0 ? '+' : ''}${formatNum(dailyPnl)}` : '—'}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-label-caps mb-1 text-on-surface-variant">当日收益</p>
+                    <p className={`font-mono-data text-lg ${pnlColor(dailyPct)}`}>
+                      {dailyPct != null ? formatPct(dailyPct) : '—'}
+                    </p>
+                  </div>
+                </div>
 
                   {editing === code && (
                     <FundCostEditor

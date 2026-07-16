@@ -703,6 +703,8 @@ export default function Page() {
                   onCancelEdit={() => setEditing(null)}
                   onRemove={removeFund}
                   onAddFund={() => setSearchOpen(true)}
+                  todayPnL={totals.todayPnL}
+                  todayPct={totals.todayPct}
                 />
               )}
 
