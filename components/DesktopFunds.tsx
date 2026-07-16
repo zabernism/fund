@@ -26,6 +26,8 @@ export default function DesktopFunds({
   onCancelEdit,
   onRemove,
   onAddFund,
+  onExport,
+  onImport,
 }: {
   codes: string[];
   funds: Record<string, FundEstimate>;
@@ -36,10 +38,12 @@ export default function DesktopFunds({
   fundTrends: Record<string, FundTrend | 'loading' | 'error'>;
   editing: string | null;
   onEditToggle: (code: string) => void;
-  onSaveCost: (code: string, cost: number | null, shares: number | null) => void;
+  onSaveCost: (code: string, amount: number | null, pnl: number | null) => void;
   onCancelEdit: () => void;
   onRemove: (code: string) => void;
   onAddFund?: () => void;
+  onExport?: () => void;
+  onImport?: (file: File) => void;
 }) {
   return (
     <section className="flex h-full flex-col overflow-hidden rounded-xl border border-outline-variant bg-surface-container-low shadow-sm">
@@ -57,12 +61,25 @@ export default function DesktopFunds({
               新增持仓
             </button>
           )}
-          <button className="rounded border border-outline px-3 py-1 text-body-sm text-on-surface-variant transition-all hover:bg-surface-container-highest">
+          <button
+            onClick={onExport}
+            className="rounded border border-outline px-3 py-1 text-body-sm text-on-surface-variant transition-all hover:bg-surface-container-highest"
+          >
             导出
           </button>
-          <button className="rounded border border-outline px-3 py-1 text-body-sm text-on-surface-variant transition-all hover:bg-surface-container-highest">
+          <label className="cursor-pointer rounded border border-outline px-3 py-1 text-body-sm text-on-surface-variant transition-all hover:bg-surface-container-highest">
             导入
-          </button>
+            <input
+              type="file"
+              accept="application/json,.json"
+              className="hidden"
+              onChange={(e) => {
+                const f = e.target.files?.[0];
+                if (f && onImport) onImport(f);
+                e.target.value = '';
+              }}
+            />
+          </label>
         </div>
       </div>
 
@@ -92,13 +109,12 @@ export default function DesktopFunds({
               const f = funds[code];
               const err = fundErrors[code];
               const cost = costMap[code];
-              const shares = cost?.shares ?? null;
-              const costBasis = cost?.cost ?? null;
-              const profit =
-                f?.nav != null && costBasis != null && shares != null
-                  ? f.nav * shares - costBasis * shares
-                  : null;
-              const totalVal = f?.nav != null && shares != null ? f.nav * shares : null;
+              const amount = cost?.amount ?? null;
+              const pnl = cost?.pnl ?? null;
+              const costBasis = amount != null && pnl != null ? amount - pnl : null;
+              const profit = pnl;
+              const totalVal = amount;
+              const profitPct = profit != null && costBasis != null && costBasis > 0 ? (profit / costBasis) * 100 : null;
               const expanded = expandedFund === code;
               const ft =
                 fundTrends[code] &&
@@ -152,21 +168,24 @@ export default function DesktopFunds({
                           <div className="flex flex-wrap items-end justify-between gap-4">
                             <div className="flex gap-8">
                               <div>
-                                <p className="mb-1 label-caps text-on-surface-variant">成本净值</p>
+                                <p className="mb-1 label-caps text-on-surface-variant">持有金额</p>
                                 <p className="font-data-mono text-lg">
-                                  {costBasis != null ? formatNum(costBasis, 4) : '—'}
+                                  {totalVal != null ? `¥${formatNum(totalVal)}` : '—'}
                                 </p>
                               </div>
                               <div>
-                                <p className="mb-1 label-caps text-on-surface-variant">持有市值</p>
+                                <p className="mb-1 label-caps text-on-surface-variant">成本</p>
                                 <p className="font-data-mono text-lg">
-                                  {totalVal != null ? `¥${formatNum(totalVal)}` : '—'}
+                                  {costBasis != null ? `¥${formatNum(costBasis)}` : '—'}
                                 </p>
                               </div>
                               <div>
                                 <p className="mb-1 label-caps text-on-surface-variant">累计盈亏</p>
                                 <p className={`font-data-mono text-lg ${pnlColor(profit)}`}>
                                   {profit != null ? `${profit >= 0 ? '+' : ''}${formatNum(profit)}` : '—'}
+                                  {profitPct != null && (
+                                    <span className="ml-1 text-sm">({formatPct(profitPct)})</span>
+                                  )}
                                 </p>
                               </div>
                             </div>
@@ -174,8 +193,8 @@ export default function DesktopFunds({
 
                           {editing && (
                             <FundCostEditor
-                              initial={costBasis != null && shares != null ? { cost: costBasis, shares } : undefined}
-                              onSave={(c, s) => onSaveCost(code, c, s)}
+                              initial={amount != null || pnl != null ? { amount, pnl } : undefined}
+                              onSave={(a, p) => onSaveCost(code, a, p)}
                               onCancel={onCancelEdit}
                             />
                           )}
@@ -186,7 +205,7 @@ export default function DesktopFunds({
                                 加载走势中…
                               </div>
                             ) : ft ? (
-                              <Sparkline trend={ft} baseline={costBasis} width={1000} height={160} responsive fill />
+                              <Sparkline trend={ft} width={1000} height={160} responsive fill />
                             ) : (
                               <div className="flex h-full items-center justify-center text-body-md text-on-surface-variant">
                                 {fundTrends[code] === 'error' ? '走势暂不可用' : '该基金暂无走势数据'}
@@ -198,6 +217,12 @@ export default function DesktopFunds({
                             <span className="label-caps text-on-surface-variant">
                               {ft?.type === 'intraday' ? '盘中分时（场内逐分钟）' : '近 30 日单位净值'}
                             </span>
+                            <button
+                              onClick={() => onEditToggle(code)}
+                              className="label-caps text-primary transition-opacity hover:opacity-80"
+                            >
+                              {editing ? '收起编辑' : '编辑持仓'}
+                            </button>
                             <button
                               onClick={() => onRemove(code)}
                               className="ml-auto label-caps text-market-up transition-opacity hover:opacity-80"

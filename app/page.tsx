@@ -11,32 +11,43 @@ import type {
   TrendData,
   FundCost,
   FundTrend,
+  FundRankItem,
 } from '@/lib/types';
 import { isTradingNow } from '@/lib/format';
 import MarketOverview from '@/components/MarketOverview';
 import AddFund from '@/components/AddFund';
-import SectorHeatmap from '@/components/SectorHeatmap';
-import Panel from '@/components/Panel';
 import FundRow from '@/components/FundRow';
 import TopAppBar from '@/components/TopAppBar';
 import BottomNav, { type TabKey } from '@/components/BottomNav';
 import HoldingsCard from '@/components/HoldingsCard';
 import SearchOverlay from '@/components/SearchOverlay';
 import SettingsSheet from '@/components/SettingsSheet';
-import AlphaTopBar from '@/components/AlphaTopBar';
-import DesktopFunds from '@/components/DesktopFunds';
-import DesktopSidebar, { toEmSecid } from '@/components/DesktopSidebar';
-import IndexStrip from '@/components/IndexStrip';
-import TickerFooter from '@/components/TickerFooter';
+import { toEmSecid } from '@/components/DesktopSidebar';
 import AssetAllocation from '@/components/AssetAllocation';
 import GoldPanelMobile from '@/components/GoldPanelMobile';
+import FundRanking from '@/components/FundRanking';
+import AiSidebarWidget from '@/components/AiSidebarWidget';
 import ViewSwitch, { type ViewMode } from '@/components/ViewSwitch';
-import { IconFlame } from '@/components/icons';
+import DesktopNavRail, { type DesktopNavTab } from '@/components/DesktopNavRail';
+import DesktopHeader from '@/components/DesktopHeader';
+import PreciousMetalsCard from '@/components/PreciousMetalsCard';
+import IndicesCard from '@/components/IndicesCard';
+import DesktopHoldings from '@/components/DesktopHoldings';
 
 const STORAGE_FUNDS = 'fund-dashboard:codes';
 const STORAGE_SECTORS = 'fund-dashboard:sectors';
 const STORAGE_COSTS = 'fund-dashboard:costs';
-const DEFAULT_CODES = ['161725', '110011', '000051', '005827'];
+// 用户自选基金（截图持仓）
+const DEFAULT_CODES = ['011803', '014089', '007467', '160706', '012349', '011103'];
+/** 默认持仓金额/盈亏（来自用户截图，首次使用自动填入） */
+const DEFAULT_COSTS: Record<string, { amount: number; pnl: number }> = {
+  '011803': { amount: 17616.23, pnl: 1010.95 },
+  '014089': { amount: 29957.20, pnl: 592.02 },
+  '007467': { amount: 33959.49, pnl: -700.47 },
+  '160706': { amount: 19827.46, pnl: 359.25 },
+  '012349': { amount: 29108.43, pnl: -5931.68 },
+  '011103': { amount: 8957.64, pnl: -2124.86 },
+};
 const REFRESH_MS = 5000;
 
 export default function Page() {
@@ -49,6 +60,10 @@ export default function Page() {
   const [sectorQuotes, setSectorQuotes] = useState<Record<string, SectorQuote>>({});
   const [gold, setGold] = useState<GoldQuote[]>([]);
   const [trends, setTrends] = useState<Record<string, TrendData>>({});
+  const [rankData, setRankData] = useState<{ gainers: FundRankItem[]; losers: FundRankItem[] }>({
+    gainers: [],
+    losers: [],
+  });
 
   const [indices, setIndices] = useState<IndexQuote[]>([]);
 
@@ -58,12 +73,15 @@ export default function Page() {
     sectors: true,
     gold: true,
     trends: true,
+    rank: true,
   });
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
   const [booted, setBooted] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [editing, setEditing] = useState<string | null>(null);
   const [expandedFund, setExpandedFund] = useState<string | null>(null);
+  /** PC 端导航：holdings=持仓 / ranking=涨跌榜 / markets=贵金属+指数 */
+  const [desktopNav, setDesktopNav] = useState<DesktopNavTab>('holdings');
   const [fundTrends, setFundTrends] = useState<
     Record<string, FundTrend | 'loading' | 'error'>
   >({});
@@ -88,9 +106,11 @@ export default function Page() {
     window.history.replaceState({}, '', url.toString());
   };
 
-  const [activeTab, setActiveTab] = useState<TabKey>('markets');
+  const [activeTab, setActiveTab] = useState<TabKey>('holdings');
   const [searchOpen, setSearchOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  // 悬浮 AI 智能选基面板开关（受控传给 AiSidebarWidget）
+  const [aiOpen, setAiOpen] = useState(false);
 
   // ---- 主题（浅色 / 深色 / 跟随系统 / 护眼） ----
   const [theme, setTheme] = useState<'light' | 'dark' | 'system' | 'eye'>(
@@ -246,6 +266,18 @@ export default function Page() {
     }
   }, []);
 
+  const fetchRank = useCallback(async () => {
+    setLoading((l) => ({ ...l, rank: true }));
+    try {
+      const { gainers, losers } = await api.rank();
+      setRankData({ gainers, losers });
+    } catch {
+      /* 静默失败 */
+    } finally {
+      setLoading((l) => ({ ...l, rank: false }));
+    }
+  }, []);
+
   const fetchAll = useCallback(async () => {
     await Promise.all([
       fetchFunds(),
@@ -253,6 +285,7 @@ export default function Page() {
       fetchSectors(),
       fetchGold(),
       fetchTrend(),
+      fetchRank(),
     ]);
     const ef = expandedFundRef.current;
     if (ef) {
@@ -262,7 +295,7 @@ export default function Page() {
         .catch(() => {});
     }
     setLastUpdated(new Date());
-  }, [fetchFunds, fetchIndices, fetchSectors, fetchGold, fetchTrend]);
+  }, [fetchFunds, fetchIndices, fetchSectors, fetchGold, fetchTrend, fetchRank]);
 
   // ---- 初始化：读取本地自选 ----
   useEffect(() => {
@@ -293,10 +326,31 @@ export default function Page() {
     if (rawC) {
       try {
         const p = JSON.parse(rawC);
-        if (p && typeof p === 'object') setCostMap(p);
+        if (p && typeof p === 'object' && Object.keys(p).length > 0) {
+          // 迁移旧格式 {cost, shares} → 新格式 {amount, pnl}
+          const migrated: Record<string, FundCost> = {};
+          for (const [k, v] of Object.entries(p)) {
+            const old = v as any;
+            if ('cost' in old || 'shares' in old) {
+              const amt = old.cost != null && old.shares != null ? old.cost * old.shares : null;
+              migrated[k] = { amount: amt, pnl: amt != null ? 0 : null };
+            } else {
+              migrated[k] = { amount: old.amount ?? null, pnl: old.pnl ?? null };
+            }
+          }
+          setCostMap(migrated);
+          localStorage.setItem(STORAGE_COSTS, JSON.stringify(migrated));
+        } else {
+          setCostMap(DEFAULT_COSTS);
+          localStorage.setItem(STORAGE_COSTS, JSON.stringify(DEFAULT_COSTS));
+        }
       } catch {
-        /* ignore */
+        setCostMap(DEFAULT_COSTS);
+        localStorage.setItem(STORAGE_COSTS, JSON.stringify(DEFAULT_COSTS));
       }
+    } else {
+      setCostMap(DEFAULT_COSTS);
+      localStorage.setItem(STORAGE_COSTS, JSON.stringify(DEFAULT_COSTS));
     }
     setBooted(true);
   }, []);
@@ -361,41 +415,13 @@ export default function Page() {
     if (editing === code) setEditing(null);
   };
 
-  const saveCost = (code: string, cost: number | null, shares: number | null) => {
+  const saveCost = (code: string, amount: number | null, pnl: number | null) => {
     setCostMap((prev) => {
-      const next = { ...prev, [code]: { cost, shares } };
+      const next = { ...prev, [code]: { amount, pnl } };
       localStorage.setItem(STORAGE_COSTS, JSON.stringify(next));
       return next;
     });
     setEditing(null);
-  };
-
-  const addSector = (item: SectorWatchItem) => {
-    if (sectors.some((s) => s.code === item.code)) return;
-    setSectors((prev) => {
-      const next = [...prev, item];
-      localStorage.setItem(STORAGE_SECTORS, JSON.stringify(next));
-      return next;
-    });
-    api
-      .sectorQuote([item.code])
-      .then(({ sectors: qs }) => {
-        if (qs[0]) setSectorQuotes((m) => ({ ...m, [item.code]: qs[0] }));
-      })
-      .catch(() => {});
-  };
-
-  const removeSector = (code: string) => {
-    setSectors((prev) => {
-      const next = prev.filter((s) => s.code !== code);
-      localStorage.setItem(STORAGE_SECTORS, JSON.stringify(next));
-      return next;
-    });
-    setSectorQuotes((m) => {
-      const n = { ...m };
-      delete n[code];
-      return n;
-    });
   };
 
   const manualRefresh = async () => {
@@ -436,26 +462,30 @@ export default function Page() {
     codes.forEach((c) => {
       const f = funds[c];
       const cost = costMap[c];
-      if (f?.nav != null && cost?.cost != null && cost?.shares != null) {
-        const shares = cost.shares;
-        const mv = f.nav * shares;
-        marketValue += mv;
-        totalProfit += mv - cost.cost * shares;
-        totalCost += cost.cost * shares;
-        if (f.changePct != null) {
-          const prevNav = f.nav / (1 + f.changePct / 100);
-          todayPnL += (f.nav - prevNav) * shares;
+      if (cost?.amount != null) {
+        const amt = cost.amount;
+        const pnl = cost.pnl ?? 0;
+        marketValue += amt;
+        totalProfit += pnl;
+        totalCost += amt - pnl;
+        if (f?.changePct != null) {
+          todayPnL += (amt * f.changePct) / 100;
         }
       }
     });
     const totalPct = totalCost > 0 ? (totalProfit / totalCost) * 100 : 0;
     const todayPct = totalCost > 0 ? (todayPnL / totalCost) * 100 : 0;
-    return { totalProfit, totalPct, marketValue, todayPnL, todayPct, hasCost: totalCost > 0 };
+    return { totalProfit, totalPct, marketValue, todayPnL, todayPct, hasCost: totalCost > 0 || marketValue > 0 };
   }, [codes, funds, costMap]);
 
   const onNav = (k: TabKey) => {
     if (k === 'settings') {
       setSettingsOpen(true);
+      return;
+    }
+    if (k === 'ai') {
+      // AI 推荐已改为右下角悬浮「小人」，底部导航的智能标签负责展开/收起
+      setAiOpen((o) => !o);
       return;
     }
     setActiveTab(k);
@@ -483,6 +513,47 @@ export default function Page() {
     clearSectors();
   };
 
+  const exportData = () => {
+    const data = {
+      codes,
+      sectors,
+      costs: costMap,
+      exportedAt: new Date().toISOString(),
+    };
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `fund-dashboard-${new Date().toISOString().slice(0, 10)}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const importData = (file: File) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      try {
+        const p = JSON.parse(reader.result as string);
+        if (Array.isArray(p.codes)) {
+          const valid = p.codes.filter((c: any) => typeof c === 'string' && /^\d{6}$/.test(c));
+          setCodes(valid);
+          localStorage.setItem(STORAGE_FUNDS, JSON.stringify(valid));
+        }
+        if (Array.isArray(p.sectors)) {
+          setSectors(p.sectors);
+          localStorage.setItem(STORAGE_SECTORS, JSON.stringify(p.sectors));
+        }
+        if (p.costs && typeof p.costs === 'object') {
+          setCostMap(p.costs);
+          localStorage.setItem(STORAGE_COSTS, JSON.stringify(p.costs));
+        }
+      } catch {
+        /* ignore parse errors */
+      }
+    };
+    reader.readAsText(file);
+  };
+
   return (
     <main className="min-h-screen">
       {/* 移动端 TERMINAL.A */}
@@ -494,10 +565,12 @@ export default function Page() {
           onSearch={() => setSearchOpen(true)}
           onRefresh={manualRefresh}
           refreshing={refreshing}
+          view={forceView}
+          onViewChange={handleViewChange}
         />
 
         <div className="mx-auto max-w-md space-y-4 px-3 pb-24 pt-[4.25rem]">
-        {activeTab === 'markets' ? (
+        {activeTab === 'markets' && (
           <>
             <MarketOverview
               indices={indices}
@@ -516,29 +589,21 @@ export default function Page() {
               downCount={downCount}
             />
 
-            <Panel
-              title="热门行业板块"
-              icon={<IconFlame width={18} height={18} />}
-              right={
-                <span className="text-xs font-normal text-[var(--muted)]">
-                  长按搜索添加
-                </span>
-              }
-            >
-              <SectorHeatmap
-                sectors={sectors}
-                quotes={sectorQuotes}
-                trends={trends}
-              />
-            </Panel>
-
             <GoldPanelMobile
               gold={gold}
               trends={trends}
               loading={loading.gold}
             />
+
+            <FundRanking
+              gainers={rankData.gainers}
+              losers={rankData.losers}
+              loading={loading.rank}
+            />
           </>
-        ) : (
+        )}
+
+        {activeTab === 'holdings' && (
           <>
             <HoldingsCard
               hasCost={totals.hasCost}
@@ -595,43 +660,36 @@ export default function Page() {
         )}
       </div>
 
-      <BottomNav active={activeTab} onChange={onNav} />
+      <BottomNav active={aiOpen ? 'ai' : activeTab} onChange={onNav} />
 
-      {/* 手机端视图切换（桌面版 / 手机版），悬浮在底部导航上方 */}
-      <div className="fixed bottom-[4.5rem] right-3 z-[110]">
+      {/* 手机端视图切换（桌面版 / 手机版），悬浮在底部导航上方左侧，避免与右下角 AI 小人重叠 */}
+      <div className="fixed bottom-[4.5rem] left-3 z-[110]">
         <ViewSwitch value={forceView} onChange={handleViewChange} variant="mobile" />
       </div>
       </div>
 
-      {/* 桌面端 — 严格匹配参考 index.html 布局结构 */}
-      <div className={forceView === 'mobile' ? 'hidden' : forceView === 'desktop' ? 'alpha flex h-screen flex-col overflow-hidden' : 'alpha hidden lg:flex lg:h-screen lg:flex-col lg:overflow-hidden'}>
-        {/* 外层 flex 容器：main 滚动，footer 固定底部 */}
-        <div className="flex flex-1 overflow-hidden">
-          <main className="flex-1 overflow-y-auto bg-surface-dim relative">
-            {/* 浮动主题切换 + 视图切换（参考 index.html 第169行） */}
-            <div className="fixed top-3 right-3 z-[100] flex items-center rounded-full border border-outline-variant bg-surface-container-low/80 p-1 shadow-lg backdrop-blur-md">
-              <button className="flex h-8 w-8 items-center justify-center rounded-full transition-all hover:bg-primary-container" onClick={() => applyTheme('dark')} title="深蓝">
-                <span className="material-symbols-outlined text-[18px]">dark_mode</span>
-              </button>
-              <button className="flex h-8 w-8 items-center justify-center rounded-full transition-all hover:bg-primary-container" onClick={() => applyTheme('light')} title="明亮">
-                <span className="material-symbols-outlined text-[18px]">light_mode</span>
-              </button>
-              <button className="flex h-8 w-8 items-center justify-center rounded-full transition-all hover:bg-primary-container" onClick={() => applyTheme('eye')} title="护眼">
-                <span className="material-symbols-outlined text-[18px]">visibility</span>
-              </button>
-              <span className="mx-0.5 h-5 w-px bg-outline-variant" />
-              <ViewSwitch value={forceView} onChange={handleViewChange} variant="desktop" />
-            </div>
+      {/* 桌面端 — 匹配 redesign-preview.html：flex 水平布局（左侧导航 + 右侧内容） */}
+      <div className={forceView === 'mobile' ? 'hidden' : forceView === 'desktop' ? 'alpha flex h-screen overflow-hidden' : 'alpha hidden lg:flex lg:h-screen lg:overflow-hidden'}>
+        <DesktopNavRail
+          theme={theme}
+          onThemeChange={applyTheme}
+          onOpenSettings={() => setSettingsOpen(true)}
+          activeNav={desktopNav}
+          onNavChange={setDesktopNav}
+        />
 
-            {/* 指数行情条 — 匹配参考第181行，带底边框 */}
-            <section className="grid grid-cols-1 gap-gutter border-b border-outline-variant bg-surface-container-lowest p-gutter md:grid-cols-3 lg:grid-cols-5">
-              <IndexStrip indices={indices} />
-            </section>
+        <main className="flex min-w-0 flex-1 flex-col">
+          <DesktopHeader
+            onSearch={() => setSearchOpen(true)}
+            lastUpdated={lastUpdated}
+            view={forceView}
+            onViewChange={handleViewChange}
+          />
 
-            {/* 主网格 — 匹配参考第224行 */}
-            <div className="grid grid-cols-12 gap-gutter p-gutter" style={{ height: 'calc(100% - 80px)' }}>
-              <section className="col-span-12 lg:col-span-8 flex flex-col gap-gutter">
-                <DesktopFunds
+          <div className="custom-scrollbar flex-1 overflow-y-auto px-6 py-6">
+            <div className="mx-auto flex max-w-[1180px] flex-col gap-6">
+              {desktopNav === 'holdings' && (
+                <DesktopHoldings
                   codes={codes}
                   funds={funds}
                   fundErrors={fundErrors}
@@ -646,38 +704,44 @@ export default function Page() {
                   onRemove={removeFund}
                   onAddFund={() => setSearchOpen(true)}
                 />
-              </section>
-              <aside className="col-span-12 lg:col-span-4 flex flex-col gap-gutter h-full">
-                <DesktopSidebar
-                  sectors={sectors}
-                  sectorQuotes={sectorQuotes}
-                  trends={trends}
-                  gold={gold}
-                  onRemoveSector={removeSector}
-                />
-              </aside>
-            </div>
-          </main>
-        </div>
+              )}
 
-        {/* 页脚 — 固定在底部，不随内容滚动 */}
-        <TickerFooter
-          indices={indices}
-          sectors={sectors
-            .map((s) => sectorQuotes[s.code])
-            .filter((q): q is SectorQuote => Boolean(q))}
-          gold={gold}
-          connected
-        />
+              {desktopNav === 'ranking' && (
+                <FundRanking
+                  gainers={rankData.gainers}
+                  losers={rankData.losers}
+                  loading={loading.rank}
+                />
+              )}
+
+              {desktopNav === 'markets' && (
+                <>
+                  {/* 贵金属（col-span-2）+ 主要指数 */}
+                  <section className="grid grid-cols-3 gap-6">
+                    <PreciousMetalsCard gold={gold} trends={trends} loading={loading.gold} />
+                    <IndicesCard indices={indices} loading={loading.indices} />
+                  </section>
+                </>
+              )}
+
+              <div className="h-4" />
+            </div>
+          </div>
+        </main>
       </div>
+
+      {/* 悬浮 AI 智能选基（右下角「小人」，默认收起，移动端/桌面端通用） */}
+      <AiSidebarWidget
+        onAddFund={addFund}
+        existingCodes={codes}
+        open={aiOpen}
+        onOpenChange={setAiOpen}
+      />
 
       <SearchOverlay
         open={searchOpen}
         onClose={() => setSearchOpen(false)}
         onAddFund={addFund}
-        onAddSector={addSector}
-        onRemoveSector={removeSector}
-        sectors={sectors}
         existingCodes={codes}
       />
 
@@ -690,7 +754,6 @@ export default function Page() {
         trading={trading}
         refreshMs={REFRESH_MS}
         onClearFunds={clearFunds}
-        onClearSectors={clearSectors}
         onClearCosts={clearCosts}
         onClearAll={clearAll}
       />

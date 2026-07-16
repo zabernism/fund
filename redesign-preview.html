@@ -1,0 +1,394 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="light">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>基金看板 · 重设计方案</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@24,400,0,0&family=JetBrains+Mono:wght@400;600;700&display=swap" rel="stylesheet" />
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+  :root{
+    --al-bg:#f8f9ff; --al-surface:#ffffff; --al-sc-high:#f0f4f8; --al-sc-highest:#e9eef5;
+    --al-on-surface:#1a1c1e; --al-on-surface-variant:#565d6d; --al-outline-variant:#e2e6ef;
+    --al-primary:#0035be; --al-on-primary:#ffffff; --al-primary-container:#dde1ff; --al-on-primary-container:#001356;
+    --al-tertiary:#006d39; --al-tertiary-container:#a6f0c4; --al-on-tertiary-container:#00210e;
+    --al-market-up:#ba1a1a; --al-market-down:#006d39; --al-cost:#8a5300;
+    --al-shadow:0 1px 2px rgba(16,24,40,.04),0 8px 24px rgba(16,24,40,.06);
+    --radius:20px;
+  }
+  [data-theme="dark"]{
+    --al-bg:#0b1326; --al-surface:#131b2e; --al-sc-high:#222a3d; --al-sc-highest:#2d3449;
+    --al-on-surface:#e9edf8; --al-on-surface-variant:#aab1c5; --al-outline-variant:#2b3346;
+    --al-primary:#b8c3ff; --al-on-primary:#002388; --al-primary-container:#2e5bff; --al-on-primary-container:#efefff;
+    --al-tertiary:#51df8e; --al-tertiary-container:#007e46; --al-on-tertiary-container:#c2ffd1;
+    --al-market-up:#ff8a80; --al-market-down:#51df8e; --al-cost:#f5b95c;
+    --al-shadow:0 1px 2px rgba(0,0,0,.3),0 12px 32px rgba(0,0,0,.4);
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  body{margin:0;font-family:'Inter','PingFang SC','Microsoft YaHei',system-ui,sans-serif;
+    background:var(--al-bg);color:var(--al-on-surface);transition:background .3s,color .3s}
+  .mat{font-family:'Material Symbols Rounded';font-weight:normal;font-style:normal;line-height:1;
+    letter-spacing:normal;text-transform:none;white-space:nowrap;direction:ltr;-webkit-font-feature-settings:'liga';-webkit-font-smoothing:antialiased}
+  .mono{font-family:'JetBrains Mono',ui-monospace,monospace;font-variant-numeric:tabular-nums}
+  .card{background:var(--al-surface);border:1px solid var(--al-outline-variant);border-radius:var(--radius);box-shadow:var(--al-shadow)}
+  .chip{border:1px solid var(--al-outline-variant);border-radius:999px}
+  .up{color:var(--al-market-up)} .down{color:var(--al-market-down)} .cost{color:var(--al-cost)}
+  .nav-dot{width:48px;height:48px;border-radius:16px;display:flex;align-items:center;justify-content:center;
+    color:var(--al-on-surface-variant);transition:.2s;cursor:pointer}
+  .nav-dot:hover{background:var(--al-sc-high);color:var(--al-on-surface)}
+  .nav-dot.active{background:var(--al-primary-container);color:var(--al-on-primary-container)}
+  [data-theme="dark"] .nav-dot.active{background:var(--al-primary);color:var(--al-on-primary)}
+  .section-title{font-size:13px;font-weight:700;letter-spacing:.04em;color:var(--al-on-surface-variant);text-transform:uppercase}
+  .scroll-thin::-webkit-scrollbar{width:8px;height:8px}
+  .scroll-thin::-webkit-scrollbar-thumb{background:var(--al-outline-variant);border-radius:8px}
+  /* AI character */
+  .ai-fab{position:fixed;right:28px;bottom:28px;z-index:60;width:60px;height:60px;border-radius:50%;
+    background:linear-gradient(135deg,var(--al-primary),#5b6bff);color:#fff;display:flex;align-items:center;justify-content:center;
+    box-shadow:0 8px 24px rgba(0,53,190,.4);cursor:pointer;transition:transform .25s}
+  .ai-fab:hover{transform:scale(1.06)}
+  .ai-fab .pulse{position:absolute;inset:0;border-radius:50%;border:2px solid var(--al-primary);animation:pulse 2.4s infinite}
+  @keyframes pulse{0%{transform:scale(1);opacity:.6}70%{transform:scale(1.5);opacity:0}100%{opacity:0}}
+  .ai-panel{position:fixed;right:28px;bottom:100px;z-index:59;width:360px;max-width:calc(100vw - 40px);
+    transform:translateY(16px) scale(.98);opacity:0;pointer-events:none;transition:.25s}
+  .ai-panel.open{transform:none;opacity:1;pointer-events:auto}
+  .typing span{display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--al-on-surface-variant);margin:0 2px;animation:blink 1.2s infinite}
+  .typing span:nth-child(2){animation-delay:.2s}.typing span:nth-child(3){animation-delay:.4s}
+  @keyframes blink{0%,60%,100%{opacity:.25}30%{opacity:1}}
+  .spark{width:100%;height:88px;display:block}
+  .fade-in{animation:fade .35s ease both}
+  @keyframes fade{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+</style>
+</head>
+<body>
+<div class="flex h-screen overflow-hidden">
+
+  <!-- ============ 左侧导航栏（移动端底部导航竖化） ============ -->
+  <aside class="w-[76px] shrink-0 flex flex-col items-center py-5 border-r" style="border-color:var(--al-outline-variant);background:var(--al-surface)">
+    <div class="w-10 h-10 rounded-2xl flex items-center justify-center mb-6 mat" style="background:var(--al-primary);color:var(--al-on-primary)">monitoring</div>
+    <nav class="flex-1 flex flex-col gap-2 w-full items-center">
+      <div class="nav-dot active" data-nav="holdings" title="我的持仓"><span class="mat" style="font-size:24px">account_balance_wallet</span></div>
+      <div class="nav-dot" data-nav="markets" title="行情"><span class="mat" style="font-size:24px">show_chart</span></div>
+      <div class="nav-dot" data-nav="discover" title="发现"><span class="mat" style="font-size:24px">explore</span></div>
+    </nav>
+    <div class="flex flex-col gap-3 items-center">
+      <div class="nav-dot" id="themeBtn" title="切换主题"><span class="mat" style="font-size:24px">dark_mode</span></div>
+      <div class="nav-dot" data-nav="settings" title="设置"><span class="mat" style="font-size:24px">settings</span></div>
+    </div>
+  </aside>
+
+  <!-- ============ 主区域 ============ -->
+  <main class="flex-1 flex flex-col min-w-0">
+    <!-- 顶栏 -->
+    <header class="flex items-center gap-4 px-6 py-4 border-b" style="border-color:var(--al-outline-variant)">
+      <div class="min-w-0">
+        <h1 class="text-xl font-bold leading-tight" style="color:var(--al-on-surface)">基金看板</h1>
+        <p class="text-xs" style="color:var(--al-on-surface-variant)">智汇金融终端 · 实时</p>
+      </div>
+      <div class="flex-1 max-w-md ml-2 hidden sm:block">
+        <div class="chip flex items-center gap-2 px-4 py-2 text-sm" style="color:var(--al-on-surface-variant)">
+          <span class="mat" style="font-size:18px">search</span>
+          <span class="flex-1">添加基金 / 代码…</span>
+          <span class="mat" style="font-size:18px;opacity:.5">add</span>
+        </div>
+      </div>
+      <div class="ml-auto flex items-center gap-2">
+        <div class="chip px-3 py-1.5 text-xs flex items-center gap-1" style="color:var(--al-on-surface-variant)">
+          <span class="mat" style="font-size:16px">desktop_windows</span> 桌面版
+        </div>
+      </div>
+    </header>
+
+    <!-- 内容滚动区 -->
+    <div class="flex-1 overflow-y-auto scroll-thin px-6 py-6">
+      <div class="max-w-[1180px] mx-auto flex flex-col gap-6">
+
+        <!-- 第一行：贵金属 + 主要指数 -->
+        <section class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+
+          <!-- 贵金属（重点：曲线图先出已有数据，不空转） -->
+          <div class="card p-5 lg:col-span-2">
+            <div class="flex items-center justify-between mb-4">
+              <div class="flex items-center gap-2">
+                <span class="mat" style="font-size:22px;color:var(--al-cost)">payments</span>
+                <h2 class="text-base font-bold">贵金属 · 实时</h2>
+              </div>
+              <div class="chip px-2 py-0.5 text-[11px] flex items-center gap-1" style="color:var(--al-tertiary)">
+                <span class="mat" style="font-size:14px">bolt</span> 已连接
+              </div>
+            </div>
+
+            <!-- 主图：选中品种 + 已有走势（用静态 mock 曲线，绝不显示“获取中”） -->
+            <div class="rounded-2xl p-4 mb-4" style="background:var(--al-sc-high)">
+              <div class="flex items-end justify-between mb-2">
+                <div>
+                  <div class="text-sm" style="color:var(--al-on-surface-variant)">国内黄金(华安) · 元/份</div>
+                  <div class="mono text-3xl font-bold">8.363</div>
+                </div>
+                <div class="text-right">
+                  <div class="mono text-lg font-semibold down">-0.07%</div>
+                  <div class="text-xs" style="color:var(--al-on-surface-variant)">日内</div>
+                </div>
+              </div>
+              <!-- 曲线：直接展示已有数据；trend 异步到达也是覆盖同一区域，不会“loading” -->
+              <svg class="spark" viewBox="0 0 320 88" preserveAspectRatio="none">
+                <defs>
+                  <linearGradient id="g1" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stop-color="var(--al-market-down)" stop-opacity=".28"/>
+                    <stop offset="100%" stop-color="var(--al-market-down)" stop-opacity="0"/>
+                  </linearGradient>
+                </defs>
+                <polyline fill="none" stroke="var(--al-market-down)" stroke-width="2"
+                  points="0,46 26,42 52,50 78,38 104,44 130,33 156,40 182,30 208,36 234,28 260,34 286,26 320,30"/>
+                <polygon fill="url(#g1)"
+                  points="0,46 26,42 52,50 78,38 104,44 130,33 156,40 182,30 208,36 234,28 260,34 286,26 320,30 320,88 0,88"/>
+              </svg>
+            </div>
+
+            <!-- 价格列表：分组（国际/国内 · 银行 · 金店），有价即出，不等待 -->
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 text-sm">
+              <div>
+                <div class="section-title mb-2">国际 / 国内</div>
+                <div class="flex flex-col gap-1.5">
+                  <div class="flex justify-between"><span style="color:var(--al-on-surface-variant)">纽约黄金</span><span class="mono">4031.3</span></div>
+                  <div class="flex justify-between"><span style="color:var(--al-on-surface-variant)">国内黄金</span><span class="mono">8.363</span></div>
+                </div>
+              </div>
+              <div>
+                <div class="section-title mb-2">银行纸黄金</div>
+                <div class="flex flex-col gap-1.5">
+                  <div class="flex justify-between"><span style="color:var(--al-on-surface-variant)">工行</span><span class="mono">880.46 <span class="down text-[11px]">-0.6%</span></span></div>
+                  <div class="flex justify-between"><span style="color:var(--al-on-surface-variant)">农行</span><span class="mono">880.95 <span class="down text-[11px]">-0.6%</span></span></div>
+                  <div class="flex justify-between"><span style="color:var(--al-on-surface-variant)">中行</span><span class="mono">880.54 <span class="down text-[11px]">-0.6%</span></span></div>
+                </div>
+              </div>
+              <div>
+                <div class="section-title mb-2">金店品牌</div>
+                <div class="flex flex-col gap-1.5">
+                  <div class="flex justify-between"><span style="color:var(--al-on-surface-variant)">周大福</span><span class="mono">1472</span></div>
+                  <div class="flex justify-between"><span style="color:var(--al-on-surface-variant)">老凤祥</span><span class="mono">1227</span></div>
+                  <div class="flex justify-between"><span style="color:var(--al-on-surface-variant)">中国黄金</span><span class="mono">878.4</span></div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 主要指数 -->
+          <div class="card p-5">
+            <div class="flex items-center gap-2 mb-4">
+              <span class="mat" style="font-size:22px;color:var(--al-primary)">insights</span>
+              <h2 class="text-base font-bold">主要指数</h2>
+            </div>
+            <div class="flex flex-col gap-3">
+              <div class="flex items-center justify-between py-2 border-b" style="border-color:var(--al-outline-variant)">
+                <span>上证指数</span><span class="mono down">3281.4 -0.32%</span>
+              </div>
+              <div class="flex items-center justify-between py-2 border-b" style="border-color:var(--al-outline-variant)">
+                <span>深证成指</span><span class="mono up">10455 +0.41%</span>
+              </div>
+              <div class="flex items-center justify-between py-2 border-b" style="border-color:var(--al-outline-variant)">
+                <span>创业板指</span><span class="mono up">2118 +0.88%</span>
+              </div>
+              <div class="flex items-center justify-between py-2 border-b" style="border-color:var(--al-outline-variant)">
+                <span>沪深300</span><span class="mono down">3892 -0.12%</span>
+              </div>
+              <div class="flex items-center justify-between py-2">
+                <span>科创50</span><span class="mono up">986 +1.05%</span>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- 第二行：我的持仓 + 基金涨跌榜 -->
+        <section class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+
+          <!-- 我的持仓：默认即截图6只 -->
+          <div class="card p-5">
+            <div class="flex items-center justify-between mb-4">
+              <div class="flex items-center gap-2">
+                <span class="mat" style="font-size:22px;color:var(--al-tertiary)">account_balance_wallet</span>
+                <h2 class="text-base font-bold">我的持仓</h2>
+              </div>
+              <span class="text-xs" style="color:var(--al-on-surface-variant)">6 只 · 总成本 ¥148,426</span>
+            </div>
+            <div class="flex flex-col gap-2.5">
+              <!-- 卡片模板 -->
+              <div class="rounded-xl p-3 flex items-center gap-3 fade-in" style="background:var(--al-sc-high)">
+                <div class="w-9 h-9 rounded-lg flex items-center justify-center mat cost" style="background:rgba(138,83,0,.12)">diamond</div>
+                <div class="min-w-0 flex-1">
+                  <div class="text-sm font-semibold truncate">景顺长城宁景6个月持有混合A</div>
+                  <div class="text-[11px]" style="color:var(--al-on-surface-variant)">011803 · 市值 ¥17,616</div>
+                </div>
+                <div class="text-right">
+                  <div class="mono text-sm font-semibold up">+¥1,010</div>
+                  <div class="mono text-[11px] up">+6.09%</div>
+                </div>
+              </div>
+              <div class="rounded-xl p-3 flex items-center gap-3 fade-in" style="background:var(--al-sc-high)">
+                <div class="w-9 h-9 rounded-lg flex items-center justify-center mat cost" style="background:rgba(138,83,0,.12)">shield</div>
+                <div class="min-w-0 flex-1">
+                  <div class="text-sm font-semibold truncate">永赢稳健增强债券C</div>
+                  <div class="text-[11px]" style="color:var(--al-on-surface-variant)">014089 · 市值 ¥29,957</div>
+                </div>
+                <div class="text-right">
+                  <div class="mono text-sm font-semibold up">+¥592</div>
+                  <div class="mono text-[11px] up">+2.02%</div>
+                </div>
+              </div>
+              <div class="rounded-xl p-3 flex items-center gap-3 fade-in" style="background:var(--al-sc-high)">
+                <div class="w-9 h-9 rounded-lg flex items-center justify-center mat" style="background:rgba(0,53,190,.1);color:var(--al-primary)">stacked_bar_chart</div>
+                <div class="min-w-0 flex-1">
+                  <div class="text-sm font-semibold truncate">华泰柏瑞中证红利低波ETF联接C</div>
+                  <div class="text-[11px]" style="color:var(--al-on-surface-variant)">007467 · 市值 ¥33,959</div>
+                </div>
+                <div class="text-right">
+                  <div class="mono text-sm font-semibold down">-¥700</div>
+                  <div class="mono text-[11px] down">-2.02%</div>
+                </div>
+              </div>
+              <div class="rounded-xl p-3 flex items-center gap-3 fade-in" style="background:var(--al-sc-high)">
+                <div class="w-9 h-9 rounded-lg flex items-center justify-center mat" style="background:rgba(0,53,190,.1);color:var(--al-primary)">hub</div>
+                <div class="min-w-0 flex-1">
+                  <div class="text-sm font-semibold truncate">嘉实沪深300ETF联接(LOF)A</div>
+                  <div class="text-[11px]" style="color:var(--al-on-surface-variant)">160706 · 市值 ¥19,827</div>
+                </div>
+                <div class="text-right">
+                  <div class="mono text-sm font-semibold up">+¥359</div>
+                  <div class="mono text-[11px] up">+1.85%</div>
+                </div>
+              </div>
+              <div class="rounded-xl p-3 flex items-center gap-3 fade-in" style="background:var(--al-sc-high)">
+                <div class="w-9 h-9 rounded-lg flex items-center justify-center mat" style="background:rgba(0,109,57,.1);color:var(--al-tertiary)">language</div>
+                <div class="min-w-0 flex-1">
+                  <div class="text-sm font-semibold truncate">天弘恒生科技ETF联接C</div>
+                  <div class="text-[11px]" style="color:var(--al-on-surface-variant)">012349 · 市值 ¥29,108</div>
+                </div>
+                <div class="text-right">
+                  <div class="mono text-sm font-semibold down">-¥5,931</div>
+                  <div class="mono text-[11px] down">-16.93%</div>
+                </div>
+              </div>
+              <div class="rounded-xl p-3 flex items-center gap-3 fade-in" style="background:var(--al-sc-high)">
+                <div class="w-9 h-9 rounded-lg flex items-center justify-center mat cost" style="background:rgba(138,83,0,.12)">solar_power</div>
+                <div class="min-w-0 flex-1">
+                  <div class="text-sm font-semibold truncate">天弘中证光伏产业指数C</div>
+                  <div class="text-[11px]" style="color:var(--al-on-surface-variant)">011103 · 市值 ¥8,957</div>
+                </div>
+                <div class="text-right">
+                  <div class="mono text-sm font-semibold down">-¥2,124</div>
+                  <div class="mono text-[11px] down">-19.17%</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 基金涨跌榜 -->
+          <div class="card p-5">
+            <div class="flex items-center justify-between mb-4">
+              <div class="flex items-center gap-2">
+                <span class="mat" style="font-size:22px;color:var(--al-market-up)">leaderboard</span>
+                <h2 class="text-base font-bold">基金涨跌榜</h2>
+              </div>
+              <div class="flex rounded-lg p-0.5 text-xs font-semibold" style="background:var(--al-sc-high)">
+                <button class="rank-tab px-3 py-1 rounded-md active" data-tab="up" style="background:var(--al-market-up);color:#fff">涨幅</button>
+                <button class="rank-tab px-3 py-1 rounded-md" data-tab="down" style="color:var(--al-on-surface-variant)">跌幅</button>
+              </div>
+            </div>
+            <div class="flex flex-col gap-2" id="rankList">
+              <div class="flex items-center gap-3 py-2 border-b" style="border-color:var(--al-outline-variant)">
+                <span class="mono text-xs w-6 text-center" style="color:var(--al-on-surface-variant)">1</span>
+                <div class="min-w-0 flex-1"><div class="text-sm truncate">诺安成长混合</div><div class="text-[11px]" style="color:var(--al-on-surface-variant)">半导体</div></div>
+                <div class="mono text-sm font-semibold up">+4.82%</div>
+              </div>
+              <div class="flex items-center gap-3 py-2 border-b" style="border-color:var(--al-outline-variant)">
+                <span class="mono text-xs w-6 text-center" style="color:var(--al-on-surface-variant)">2</span>
+                <div class="min-w-0 flex-1"><div class="text-sm truncate">招商中证白酒</div><div class="text-[11px]" style="color:var(--al-on-surface-variant)">白酒消费</div></div>
+                <div class="mono text-sm font-semibold up">+3.91%</div>
+              </div>
+              <div class="flex items-center gap-3 py-2 border-b" style="border-color:var(--al-outline-variant)">
+                <span class="mono text-xs w-6 text-center" style="color:var(--al-on-surface-variant)">3</span>
+                <div class="min-w-0 flex-1"><div class="text-sm truncate">华夏中证动漫游戏</div><div class="text-[11px]" style="color:var(--al-on-surface-variant)">游戏</div></div>
+                <div class="mono text-sm font-semibold up">+3.45%</div>
+              </div>
+              <div class="flex items-center gap-3 py-2 border-b" style="border-color:var(--al-outline-variant)">
+                <span class="mono text-xs w-6 text-center" style="color:var(--al-on-surface-variant)">4</span>
+                <div class="min-w-0 flex-1"><div class="text-sm truncate">国泰中证全指软件</div><div class="text-[11px]" style="color:var(--al-on-surface-variant)">软件</div></div>
+                <div class="mono text-sm font-semibold up">+3.02%</div>
+              </div>
+              <div class="flex items-center gap-3 py-2">
+                <span class="mono text-xs w-6 text-center" style="color:var(--al-on-surface-variant)">5</span>
+                <div class="min-w-0 flex-1"><div class="text-sm truncate">易方达人工智能</div><div class="text-[11px]" style="color:var(--al-on-surface-variant)">AI科技</div></div>
+                <div class="mono text-sm font-semibold up">+2.78%</div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <div class="h-4"></div>
+      </div>
+    </div>
+  </main>
+</div>
+
+<!-- ============ AI 悬浮小人（默认收起，点击展开） ============ -->
+<div class="ai-fab" id="aiFab">
+  <span class="pulse"></span>
+  <span class="mat" style="font-size:30px">smart_toy</span>
+</div>
+<div class="ai-panel card" id="aiPanel">
+  <div class="flex items-center gap-3 p-4 border-b" style="border-color:var(--al-outline-variant)">
+    <div class="w-9 h-9 rounded-full flex items-center justify-center mat" style="background:var(--al-primary-container);color:var(--al-on-primary-container)">smart_toy</div>
+    <div class="flex-1">
+      <div class="text-sm font-bold">AI 智能选基</div>
+      <div class="text-[11px]" style="color:var(--al-on-surface-variant)">基于持仓风格与风险偏好</div>
+    </div>
+    <span class="mat cursor-pointer" id="aiClose" style="color:var(--al-on-surface-variant)">close</span>
+  </div>
+  <div class="p-4 flex flex-col gap-3" style="height:300px;overflow:auto">
+    <div class="self-start max-w-[85%] rounded-2xl px-3 py-2 text-sm" style="background:var(--al-sc-high)">
+      你好，我可以根据你的风险偏好推荐基金。想看哪种？
+    </div>
+    <div class="self-end max-w-[85%] rounded-2xl px-3 py-2 text-sm" style="background:var(--al-primary);color:var(--al-on-primary)">
+      稳健低波、适合保守的债券基金
+    </div>
+    <div class="self-start max-w-[85%] rounded-2xl px-3 py-2 text-sm flex items-center gap-1" style="background:var(--al-sc-high)">
+      <span class="typing"><span></span><span></span><span></span></span>
+    </div>
+  </div>
+  <div class="p-3 border-t flex flex-wrap gap-2" style="border-color:var(--al-outline-variant)">
+    <span class="chip px-2.5 py-1 text-xs" style="color:var(--al-primary)">稳健低波债券</span>
+    <span class="chip px-2.5 py-1 text-xs" style="color:var(--al-primary)">高分红红利</span>
+    <span class="chip px-2.5 py-1 text-xs" style="color:var(--al-primary)">科技成长</span>
+    <span class="chip px-2.5 py-1 text-xs" style="color:var(--al-primary)">港股互联网</span>
+  </div>
+</div>
+
+<script>
+  // 主题切换
+  const html=document.documentElement;
+  document.getElementById('themeBtn').addEventListener('click',()=>{
+    const cur=html.getAttribute('data-theme');
+    html.setAttribute('data-theme', cur==='dark'?'light':'dark');
+    document.querySelector('#themeBtn .mat').textContent = cur==='dark'?'dark_mode':'light_mode';
+  });
+  // 左侧导航高亮
+  document.querySelectorAll('.nav-dot[data-nav]').forEach(d=>{
+    d.addEventListener('click',()=>{
+      document.querySelectorAll('.nav-dot[data-nav]').forEach(x=>x.classList.remove('active'));
+      d.classList.add('active');
+    });
+  });
+  // AI 面板展开/收起
+  const fab=document.getElementById('aiFab'), panel=document.getElementById('aiPanel');
+  fab.addEventListener('click',()=>panel.classList.toggle('open'));
+  document.getElementById('aiClose').addEventListener('click',()=>panel.classList.remove('open'));
+  // 涨跌榜 tab
+  document.querySelectorAll('.rank-tab').forEach(b=>{
+    b.addEventListener('click',()=>{
+      document.querySelectorAll('.rank-tab').forEach(x=>{x.classList.remove('active');x.style.background='';x.style.color='';});
+      b.classList.add('active');b.style.background='var(--al-market-up)';b.style.color='#fff';
+    });
+  });
+</script>
+</body>
+</html>

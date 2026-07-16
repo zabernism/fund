@@ -1,13 +1,14 @@
 'use client';
 
 import type { ReactNode } from 'react';
-import { IconGrid, IconSettings, IconWallet } from './icons';
+import { IconGrid, IconSettings, IconWallet, IconSparkles } from './icons';
 
-export type TabKey = 'markets' | 'holdings' | 'settings';
+export type TabKey = 'markets' | 'holdings' | 'ai' | 'settings';
 
 const ITEMS: { key: TabKey; label: string; icon: ReactNode }[] = [
   { key: 'markets', label: '行情', icon: <IconGrid width={22} height={22} /> },
   { key: 'holdings', label: '持仓', icon: <IconWallet width={22} height={22} /> },
+  { key: 'ai', label: '智能', icon: <IconSparkles width={22} height={22} /> },
   { key: 'settings', label: '设置', icon: <IconSettings width={22} height={22} /> },
 ];
 

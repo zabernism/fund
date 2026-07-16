@@ -44,7 +44,7 @@ export default function AssetAllocation({
           </h2>
         </div>
         <p className="mt-3 text-xs leading-relaxed text-[var(--muted)]">
-          在「持仓」中为基金填写成本价与份额后，将按基金名称自动归类
+          在「持仓」中为基金填写持有金额与盈亏后，将按基金名称自动归类
           （半导体芯片 / 白酒消费 / 人工智能 / 其他），估算各分类的市值占比。
         </p>
       </section>
@@ -61,10 +61,9 @@ export default function AssetAllocation({
   Object.keys(funds).forEach((code) => {
     const f = funds[code];
     const c = costMap[code];
-    if (f?.nav != null && c?.cost != null && c?.shares != null) {
-      const mv = f.nav * c.shares;
-      mvByGroup[classify(f.name || code)] += mv;
-      total += mv;
+    if (c?.amount != null) {
+      mvByGroup[classify(f?.name || code)] += c.amount;
+      total += c.amount;
     }
   });
 

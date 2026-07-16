@@ -1,6 +1,7 @@
 'use client';
 
 import { IconRefresh, IconSearch } from './icons';
+import ViewSwitch, { type ViewMode } from './ViewSwitch';
 
 export default function TopAppBar({
   trading,
@@ -8,12 +9,16 @@ export default function TopAppBar({
   onSearch,
   onRefresh,
   refreshing,
+  view,
+  onViewChange,
 }: {
   trading: boolean;
   lastUpdated: Date | null;
   onSearch: () => void;
   onRefresh: () => void;
   refreshing: boolean;
+  view: 'auto' | 'desktop' | 'mobile';
+  onViewChange: (v: ViewMode) => void;
 }) {
   return (
     <header className="fixed inset-x-0 top-0 z-30 glass border-x-0 border-t-0 rounded-none">
@@ -59,6 +64,9 @@ export default function TopAppBar({
             <span className={`live-dot ${trading ? '' : 'closed'}`} />
             {trading ? '实时交易' : '已收盘'}
           </span>
+
+          {/* 视图切换：手机 ↔ 桌面 */}
+          <ViewSwitch value={view} onChange={onViewChange} variant="mobile" />
 
           <button
             onClick={onSearch}

@@ -8,6 +8,7 @@ import type {
   SectorType,
   TrendData,
   FundTrend,
+  FundRankItem,
 } from './types';
 
 async function getJSON<T>(url: string): Promise<T> {
@@ -40,4 +41,6 @@ export const api = {
     ),
   fundTrend: (code: string) =>
     getJSON<FundTrend>(`/api/fund/trend?code=${code}`),
+  rank: () =>
+    getJSON<{ gainers: FundRankItem[]; losers: FundRankItem[] }>('/api/fund/rank'),
 };

@@ -13,7 +13,6 @@ export default function SettingsSheet({
   trading,
   refreshMs,
   onClearFunds,
-  onClearSectors,
   onClearCosts,
   onClearAll,
 }: {
@@ -25,7 +24,6 @@ export default function SettingsSheet({
   trading: boolean;
   refreshMs: number;
   onClearFunds: () => void;
-  onClearSectors: () => void;
   onClearCosts: () => void;
   onClearAll: () => void;
 }) {
@@ -118,7 +116,6 @@ export default function SettingsSheet({
             </div>
             <div className="space-y-2">
               <ClearBtn label="清除自选基金" onClick={onClearFunds} />
-              <ClearBtn label="清除自选板块" onClick={onClearSectors} />
               <ClearBtn label="清除持仓成本价" onClick={onClearCosts} />
               <ClearBtn label="清除全部本地数据" onClick={onClearAll} danger />
             </div>

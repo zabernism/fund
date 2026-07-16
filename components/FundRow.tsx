@@ -13,44 +13,44 @@ export function FundCostEditor({
   onCancel,
 }: {
   initial?: FundCost;
-  onSave: (cost: number | null, shares: number | null) => void;
+  onSave: (amount: number | null, pnl: number | null) => void;
   onCancel: () => void;
 }) {
-  const [cost, setCost] = useState(
-    initial?.cost != null ? String(initial.cost) : '',
+  const [amount, setAmount] = useState(
+    initial?.amount != null ? String(initial.amount) : '',
   );
-  const [shares, setShares] = useState(
-    initial?.shares != null ? String(initial.shares) : '',
+  const [pnl, setPnl] = useState(
+    initial?.pnl != null ? String(initial.pnl) : '',
   );
 
   function save() {
-    const c = cost.trim() === '' ? null : Number(cost);
-    const s = shares.trim() === '' ? null : Number(shares);
-    if ((c != null && Number.isNaN(c)) || (s != null && Number.isNaN(s))) return;
-    onSave(c, s);
+    const a = amount.trim() === '' ? null : Number(amount);
+    const p = pnl.trim() === '' ? null : Number(pnl);
+    if ((a != null && Number.isNaN(a)) || (p != null && Number.isNaN(p))) return;
+    onSave(a, p);
   }
 
   return (
     <div className="mt-3 flex flex-wrap items-end gap-3 rounded-xl bg-[var(--card-hover)] p-3">
       <label className="flex flex-col text-[11px] text-[var(--muted)]">
-        成本价（净值）
+        持有金额
         <input
           type="number"
-          step="0.0001"
-          value={cost}
-          onChange={(e) => setCost(e.target.value)}
-          placeholder="如 1.0234"
+          step="0.01"
+          value={amount}
+          onChange={(e) => setAmount(e.target.value)}
+          placeholder="如 10000"
           className="mt-1 w-28 rounded-lg border border-[var(--border)] bg-[var(--surface)] px-2 py-1.5 text-sm text-[var(--text)] outline-none focus:border-primary/60"
         />
       </label>
       <label className="flex flex-col text-[11px] text-[var(--muted)]">
-        持仓份额
+        盈亏金额
         <input
           type="number"
           step="0.01"
-          value={shares}
-          onChange={(e) => setShares(e.target.value)}
-          placeholder="如 1000"
+          value={pnl}
+          onChange={(e) => setPnl(e.target.value)}
+          placeholder="亏-500 赚+300"
           className="mt-1 w-28 rounded-lg border border-[var(--border)] bg-[var(--surface)] px-2 py-1.5 text-sm text-[var(--text)] outline-none focus:border-primary/60"
         />
       </label>
@@ -93,7 +93,7 @@ export default function FundRow({
   trend?: FundTrend | 'loading' | 'error';
   editing: boolean;
   onEditToggle: () => void;
-  onSaveCost: (cost: number | null, shares: number | null) => void;
+  onSaveCost: (amount: number | null, pnl: number | null) => void;
   onCancelEdit: () => void;
   onRemove: () => void;
 }) {
@@ -106,13 +106,12 @@ export default function FundRow({
       ? 'border-l-down'
       : 'border-l-[var(--border)]';
 
-  const profit =
-    fund?.nav != null && cost?.cost != null && cost?.shares != null
-      ? fund.nav * cost.shares - cost.cost * cost.shares
-      : null;
+  const profit = cost?.pnl ?? null;
+  const costBasis =
+    cost?.amount != null && cost?.pnl != null ? cost.amount - cost.pnl : null;
   const profitPct =
-    profit != null && cost!.cost! * cost!.shares! > 0
-      ? (profit / (cost!.cost! * cost!.shares!)) * 100
+    profit != null && costBasis != null && costBasis > 0
+      ? (profit / costBasis) * 100
       : null;
 
   const ft = trend && trend !== 'loading' && trend !== 'error' ? trend : null;
@@ -175,11 +174,11 @@ export default function FundRow({
         </div>
       </div>
 
-      {cost?.cost != null && cost?.shares != null && (
+      {cost?.amount != null && (
         <div className="mt-2 flex items-center justify-between text-xs">
           <span className="text-[var(--muted)]">
-            持仓 {formatNum(cost.shares, 0)} 份 · 成本{' '}
-            <span className="text-cost">{formatNum(cost.cost, 4)}</span>
+            持有 ¥{formatNum(cost.amount)}{' '}
+            {costBasis != null && <>· 成本 ¥{formatNum(costBasis)}</>}
           </span>
           {profit != null && (
             <span className={`font-mono-data font-semibold ${changeColor(profit)}`}>
@@ -202,7 +201,7 @@ export default function FundRow({
           className="flex h-7 items-center gap-1 rounded-lg px-2 text-[11px] text-[var(--muted)] transition-colors hover:bg-[var(--card-hover)] hover:text-primary"
         >
           <IconPencil width={14} height={14} />
-          成本
+          持仓
         </button>
         <button
           onClick={onRemove}
@@ -239,10 +238,10 @@ export default function FundRow({
                 <span className="inline-block h-0 w-4 border-t border-dashed border-[var(--border)]" />
                 基准
               </span>
-              {cost?.cost != null && (
+              {cost?.pnl != null && (
                 <span className="flex items-center gap-1">
                   <span className="inline-block h-0 w-4 border-t border-dashed border-cost" />
-                  成本价
+                  成本线
                 </span>
               )}
             </span>
@@ -251,7 +250,6 @@ export default function FundRow({
             <div className="w-full">
               <Sparkline
                 trend={ft}
-                baseline={cost?.cost ?? null}
                 width={640}
                 height={120}
                 responsive

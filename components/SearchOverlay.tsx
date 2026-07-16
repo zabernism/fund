@@ -1,10 +1,9 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { api } from '@/lib/api';
-import type { FundSearchResult, SectorInfo, SectorWatchItem } from '@/lib/types';
-import { changeColor, formatPct } from '@/lib/format';
-import { IconClose, IconPlus, IconSearch, IconTrash } from './icons';
+import type { FundSearchResult } from '@/lib/types';
+import { IconClose, IconPlus, IconSearch } from './icons';
 
 const HOT_FUNDS: { code: string; name: string }[] = [
   { code: '161725', name: '招商中证白酒指数' },
@@ -21,23 +20,15 @@ export default function SearchOverlay({
   open,
   onClose,
   onAddFund,
-  onAddSector,
-  onRemoveSector,
-  sectors,
   existingCodes,
 }: {
   open: boolean;
   onClose: () => void;
   onAddFund: (code: string) => void;
-  onAddSector: (item: SectorWatchItem) => void;
-  onRemoveSector: (code: string) => void;
-  sectors: SectorWatchItem[];
   existingCodes: string[];
 }) {
-  const [tab, setTab] = useState<'fund' | 'sector'>('fund');
   const [query, setQuery] = useState('');
   const [fundResults, setFundResults] = useState<FundSearchResult[]>([]);
-  const [sectorResults, setSectorResults] = useState<SectorInfo[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [history, setHistory] = useState<string[]>([]);
@@ -78,38 +69,12 @@ export default function SearchOverlay({
     }
   }
 
-  async function runSectorSearch(q: string) {
-    setLoading(true);
-    setError('');
-    try {
-      const [ind, con] = await Promise.all([
-        api.sectorList('industry', q),
-        api.sectorList('concept', q),
-      ]);
-      const merged = [...ind.sectors, ...con.sectors];
-      const seen = new Set<string>();
-      const dedup = merged.filter((s) =>
-        seen.has(s.code) ? false : (seen.add(s.code), true),
-      );
-      setSectorResults(dedup.slice(0, 20));
-    } catch (e: any) {
-      setError(e?.message || '板块搜索失败');
-    } finally {
-      setLoading(false);
-    }
-  }
-
   function onQuery(v: string) {
     setQuery(v);
     setError('');
-    if (tab === 'fund') {
-      if (/^\d{6}$/.test(v)) runFundSearch(v);
-      else if (v.trim().length >= 1) runFundSearch(v);
-      else setFundResults([]);
-    } else {
-      if (v.trim()) runSectorSearch(v);
-      else setSectorResults([]);
-    }
+    if (/^\d{6}$/.test(v)) runFundSearch(v);
+    else if (v.trim().length >= 1) runFundSearch(v);
+    else setFundResults([]);
   }
 
   function addFund(code: string) {
@@ -119,20 +84,7 @@ export default function SearchOverlay({
     setFundResults([]);
   }
 
-  function switchTab(t: 'fund' | 'sector') {
-    setTab(t);
-    setQuery('');
-    setFundResults([]);
-    setSectorResults([]);
-    setError('');
-  }
-
-  const showHistory = tab === 'fund' && query.trim() === '';
-
-  const sectorExisting = useMemo(
-    () => new Set(sectors.map((s) => s.code)),
-    [sectors],
-  );
+  const showHistory = query.trim() === '';
 
   if (!open) return null;
 
@@ -154,19 +106,9 @@ export default function SearchOverlay({
               value={query}
               onChange={(e) => onQuery(e.target.value)}
               onKeyDown={(e) => {
-                if (e.key === 'Enter') {
-                  if (tab === 'fund' && fundResults[0]) addFund(fundResults[0].code);
-                  else if (tab === 'sector' && sectorResults[0])
-                    onAddSector({
-                      code: sectorResults[0].code,
-                      name: sectorResults[0].name,
-                      type: sectorResults[0].type,
-                    });
-                }
+                if (e.key === 'Enter' && fundResults[0]) addFund(fundResults[0].code);
               }}
-              placeholder={
-                tab === 'fund' ? '基金代码(6位)或名称' : '板块名称，如 半导体'
-              }
+              placeholder="基金代码(6位)或名称"
               className="flex-1 bg-transparent text-sm text-[var(--text)] outline-none placeholder:text-[var(--muted)]"
             />
             {loading && (
@@ -184,31 +126,11 @@ export default function SearchOverlay({
           </button>
         </div>
 
-        {/* Tab 切换 */}
-        <div className="flex gap-1 px-3 pt-3">
-          {([
-            ['fund', '基金'],
-            ['sector', '板块'],
-          ] as const).map(([k, label]) => (
-            <button
-              key={k}
-              onClick={() => switchTab(k)}
-              className={`rounded-lg px-3 py-1.5 text-sm font-medium transition-colors ${
-                tab === k
-                  ? 'bg-primary/15 text-primary'
-                  : 'text-[var(--muted)] hover:text-[var(--text)]'
-              }`}
-            >
-              {label}
-            </button>
-          ))}
-        </div>
-
         {/* 内容 */}
         <div className="no-scrollbar flex-1 overflow-y-auto px-3 py-3">
           {error && <div className="mb-2 text-xs text-up">{error}</div>}
 
-          {tab === 'fund' && showHistory && (
+          {showHistory && (
             <>
               {history.length > 0 && (
                 <Section title="最近添加">
@@ -234,7 +156,7 @@ export default function SearchOverlay({
             </>
           )}
 
-          {tab === 'fund' && !showHistory && (
+          {!showHistory && (
             <div className="space-y-2">
               {fundResults.map((r) => (
                 <button
@@ -256,79 +178,6 @@ export default function SearchOverlay({
                 </button>
               ))}
             </div>
-          )}
-
-          {tab === 'sector' && (
-            <>
-              {query.trim() === '' ? (
-                <Section title="已自选板块">
-                  {sectors.length === 0 ? (
-                    <p className="text-xs text-[var(--muted)]">
-                      暂无自选板块，输入名称搜索添加
-                    </p>
-                  ) : (
-                    sectors.map((s) => (
-                      <div
-                        key={s.code}
-                        className="flex items-center justify-between gap-2 rounded-xl border border-[var(--border)] bg-[var(--card)] px-3 py-2.5"
-                      >
-                        <span className="min-w-0">
-                          <span className="block truncate text-sm font-medium">
-                            {s.name}
-                          </span>
-                          <span className="font-mono-data text-[11px] text-[var(--muted)]">
-                            {s.code} · {s.type === 'industry' ? '行业' : '概念'}
-                          </span>
-                        </span>
-                        <button
-                          onClick={() => onRemoveSector(s.code)}
-                          aria-label="删除板块"
-                          className="flex h-7 w-7 items-center justify-center rounded-lg text-[var(--muted)] hover:bg-[var(--card-hover)] hover:text-up"
-                        >
-                          <IconTrash width={15} height={15} />
-                        </button>
-                      </div>
-                    ))
-                  )}
-                </Section>
-              ) : (
-                <div className="space-y-2">
-                  {sectorResults.map((c) => {
-                    const added = sectorExisting.has(c.code);
-                    return (
-                      <button
-                        key={c.code}
-                        disabled={added}
-                        onClick={() =>
-                          onAddSector({
-                            code: c.code,
-                            name: c.name,
-                            type: c.type,
-                          })
-                        }
-                        className="flex w-full items-center justify-between gap-2 rounded-xl border border-[var(--border)] bg-[var(--card)] px-3 py-2.5 text-left transition-colors hover:bg-[var(--card-hover)] disabled:opacity-40"
-                      >
-                        <span className="min-w-0">
-                          <span className="block truncate text-sm font-medium">
-                            {c.name}
-                          </span>
-                          <span className="font-mono-data text-[11px] text-[var(--muted)]">
-                            {c.code} · {c.type === 'industry' ? '行业' : '概念'}
-                          </span>
-                        </span>
-                        <span
-                          className={`font-mono-data text-sm font-semibold ${changeColor(
-                            c.changePct,
-                          )}`}
-                        >
-                          {c.changePct != null ? formatPct(c.changePct) : ''}
-                        </span>
-                      </button>
-                    );
-                  })}
-                </div>
-              )}
-            </>
           )}
         </div>
       </div>

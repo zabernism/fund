@@ -146,3 +146,24 @@ export const IconPhone = (p: P) => (
     <path d="M11 18h2" />
   </Base>
 );
+
+export const IconSparkles = (p: P) => (
+  <Base {...p}>
+    <path d="M12 3l1.6 4.4L18 9l-4.4 1.6L12 15l-1.6-4.4L6 9l4.4-1.6L12 3Z" />
+    <path d="M19 14l.8 2.2L22 17l-2.2.8L19 20l-.8-2.2L16 17l2.2-.8L19 14Z" />
+  </Base>
+);
+
+export const IconTrendingUp = (p: P) => (
+  <Base {...p} strokeLinecap="round" strokeLinejoin="round">
+    <polyline points="23 6 13.5 15.5 8.5 10.5 1 18" />
+    <polyline points="17 6 23 6 23 12" />
+  </Base>
+);
+
+export const IconTrendingDown = (p: P) => (
+  <Base {...p} strokeLinecap="round" strokeLinejoin="round">
+    <polyline points="23 18 13.5 8.5 8.5 13.5 1 6" />
+    <polyline points="17 18 23 18 23 12" />
+  </Base>
+);

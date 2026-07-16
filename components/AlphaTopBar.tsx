@@ -69,7 +69,7 @@ export default function AlphaTopBar({
           onClick={onOpenSearch}
           className="w-full rounded-lg border border-outline-variant bg-surface-container-low py-1.5 pl-10 pr-4 text-left font-body-md text-on-surface-variant transition-all hover:border-secondary focus:outline-none"
         >
-          添加基金 / 板块 / 代码…
+          添加基金 / 代码…
         </button>
       </div>
 

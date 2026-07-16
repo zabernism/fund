@@ -1,6 +1,6 @@
 'use client';
 
-import type { GoldQuote, TrendData } from '@/lib/types';
+import type { GoldQuote, GoldCategory, TrendData } from '@/lib/types';
 import { formatNum, formatPct } from '@/lib/format';
 import Sparkline from './Sparkline';
 
@@ -10,12 +10,12 @@ function pnlColor(v: number | null | undefined): 'text-market-up' | 'text-market
   return v > 0 ? 'text-market-up' : 'text-market-down';
 }
 
-/**
- * 移动端「贵金属」面板 — 视觉严格复用 PC 端 DesktopSidebar 的贵金属区块
- * （参考 index.html 第359-394行）：标题 + 实时 badge、大号价格(display-lg)、
- * 涨跌额/涨跌幅(display-sm)、走势占位(h-24)、最高/最低统计(grid-cols-2)。
- * 用 M3 角色令牌，随 data-theme 自适应浅色/深色。
- */
+const GROUP_TITLE: Record<GoldCategory, string> = {
+  spot: '国际 / 国内金价',
+  bank: '银行纸黄金',
+  brand: '金店品牌金价',
+};
+
 export default function GoldPanelMobile({
   gold,
   trends,
@@ -25,6 +25,8 @@ export default function GoldPanelMobile({
   trends: Record<string, TrendData>;
   loading?: boolean;
 }) {
+  const groups: GoldCategory[] = ['spot', 'bank', 'brand'];
+
   return (
     <section className="overflow-hidden rounded-xl border border-outline-variant bg-surface-container-low shadow-sm">
       <div className="flex items-center justify-between border-b border-outline-variant bg-surface-container-high p-4">
@@ -37,69 +39,114 @@ export default function GoldPanelMobile({
         </div>
       </div>
 
-      <div className="flex flex-col gap-4 p-4">
+      <div className="flex flex-col gap-5 p-4">
         {gold.length === 0 && (
           <p className="text-body-md text-on-surface-variant">
             {loading ? '贵金属行情加载中…' : '贵金属行情暂不可用'}
           </p>
         )}
-        {gold.map((g) => {
-          const cls = pnlColor(g.changePct);
-          const trend = trends[g.secid];
+
+        {groups.map((cat) => {
+          const items = gold.filter((g) => (g.category ?? 'spot') === cat);
+          if (items.length === 0) return null;
           return (
-            <div key={g.secid} className="flex flex-col gap-3">
-              {/* 名称 + 大号价格 + 涨跌额/涨跌幅 */}
-              <div className="flex items-end justify-between">
-                <div>
-                  <div className="mb-1 font-body-sm text-body-sm text-on-surface-variant">
-                    {g.name}
-                  </div>
-                  <div className="font-display-lg text-display-lg text-on-surface">
-                    {g.price != null ? formatNum(g.price, 2) : '—'}
-                  </div>
-                </div>
-                <div className="text-right">
-                  <div className={`font-display-sm text-display-sm ${cls}`}>
-                    {g.change != null ? `+${formatNum(g.change, 2)}` : '—'}
-                  </div>
-                  <div className={`font-data-mono text-body-md ${cls}`}>
-                    {g.changePct != null ? formatPct(g.changePct) : '—'}
-                  </div>
-                </div>
+            <div key={cat} className="flex flex-col gap-3">
+              <div className="flex items-center gap-2">
+                <h3 className="font-label-caps text-label-caps text-on-surface-variant">
+                  {GROUP_TITLE[cat]}
+                </h3>
+                <div className="h-px flex-1 bg-outline-variant" />
               </div>
 
-              {/* 走势区域 — 匹配参考 h-24 占位 */}
-              <div className="relative h-24 w-full overflow-hidden rounded border border-outline-variant bg-surface-container">
-                {trend ? (
-                  <div className="absolute inset-0 p-1">
-                    <Sparkline trend={trend} height={88} responsive fill />
-                  </div>
-                ) : (
-                  <div className="absolute inset-0 flex items-center justify-center label-caps text-on-surface-variant">
-                    价格走势实时分析...
-                  </div>
-                )}
-              </div>
-
-              {/* 最高 / 最低 统计 — 匹配参考 grid-cols-2 */}
-              <div className="grid grid-cols-2 gap-2">
-                <div className="rounded bg-surface-container p-2">
-                  <div className="text-[10px] uppercase text-on-surface-variant">最高</div>
-                  <div className="font-data-mono text-body-md">
-                    {g.high != null ? formatNum(g.high, 2) : '—'}
-                  </div>
-                </div>
-                <div className="rounded bg-surface-container p-2">
-                  <div className="text-[10px] uppercase text-on-surface-variant">最低</div>
-                  <div className="font-data-mono text-body-md">
-                    {g.low != null ? formatNum(g.low, 2) : '—'}
-                  </div>
-                </div>
-              </div>
+              {cat === 'spot'
+                ? items.map((g) => (
+                    <SpotCard key={g.secid} g={g} trend={trends[g.secid]} />
+                  ))
+                : items.map((g) => <CompactRow key={g.secid} g={g} />)}
             </div>
           );
         })}
       </div>
     </section>
+  );
+}
+
+function SpotCard({ g, trend }: { g: GoldQuote; trend?: TrendData }) {
+  const cls = pnlColor(g.changePct);
+  return (
+    <div className="flex flex-col gap-3">
+      <div className="flex items-end justify-between">
+        <div>
+          <div className="mb-1 font-body-sm text-body-sm text-on-surface-variant">
+            {g.name}
+            {g.unit ? <span className="ml-1 text-[10px] opacity-70">{g.unit}</span> : null}
+          </div>
+          <div className="font-display-lg text-display-lg text-on-surface">
+            {g.price != null ? formatNum(g.price, 2) : '—'}
+          </div>
+        </div>
+        <div className="text-right">
+          <div className={`font-display-sm text-display-sm ${cls}`}>
+            {g.change != null ? `+${formatNum(g.change, 2)}` : '—'}
+          </div>
+          <div className={`font-data-mono text-body-md ${cls}`}>
+            {g.changePct != null ? formatPct(g.changePct) : '—'}
+          </div>
+        </div>
+      </div>
+
+      <div className="relative h-24 w-full overflow-hidden rounded border border-outline-variant bg-surface-container">
+        {trend ? (
+          <div className="absolute inset-0 p-1">
+            <Sparkline trend={trend} height={88} responsive fill />
+          </div>
+        ) : (
+          <div className="absolute inset-0 flex items-center justify-center">
+            <span className="font-label-caps text-[10px] text-on-surface-variant/40">
+              暂无分时走势
+            </span>
+          </div>
+        )}
+      </div>
+
+      <div className="grid grid-cols-2 gap-2">
+        <div className="rounded bg-surface-container p-2">
+          <div className="text-[10px] uppercase text-on-surface-variant">最高</div>
+          <div className="font-data-mono text-body-md">
+            {g.high != null ? formatNum(g.high, 2) : '—'}
+          </div>
+        </div>
+        <div className="rounded bg-surface-container p-2">
+          <div className="text-[10px] uppercase text-on-surface-variant">最低</div>
+          <div className="font-data-mono text-body-md">
+            {g.low != null ? formatNum(g.low, 2) : '—'}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function CompactRow({ g }: { g: GoldQuote }) {
+  const cls = pnlColor(g.changePct);
+  return (
+    <div className="flex items-center justify-between rounded-lg bg-surface-container px-3 py-2.5">
+      <div className="min-w-0">
+        <div className="truncate text-sm font-medium text-on-surface">
+          {g.name}
+        </div>
+        <div className="font-data-mono text-[10px] text-on-surface-variant tabular-nums">
+          {g.unit ?? '元/克'}
+        </div>
+      </div>
+      <div className="shrink-0 text-right">
+        <div className="font-data-mono text-sm font-semibold tabular-nums text-on-surface">
+          {g.price != null ? formatNum(g.price, 2) : '—'}
+        </div>
+        <div className={`font-data-mono text-xs tabular-nums ${cls}`}>
+          {g.changePct != null ? formatPct(g.changePct) : '—'}
+        </div>
+      </div>
+    </div>
   );
 }

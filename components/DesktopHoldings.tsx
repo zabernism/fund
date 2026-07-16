@@ -1,0 +1,356 @@
+'use client';
+
+import { Fragment, useState } from 'react';
+import type { FundCost, FundEstimate, FundTrend } from '@/lib/types';
+import { formatNum, formatPct } from '@/lib/format';
+import Sparkline from './Sparkline';
+import { FundCostEditor } from './FundRow';
+
+/** 走势视图模式：曲线 / 净值 / 涨跌幅度 */
+type TrendMode = 'curve' | 'nav' | 'chg';
+const TREND_MODES: { key: TrendMode; label: string }[] = [
+  { key: 'curve', label: '曲线' },
+  { key: 'nav', label: '净值' },
+  { key: 'chg', label: '涨跌幅度' },
+];
+
+/** 把 "2026-07-14 13:00" 压缩成 "07-14" */
+function shortDate(t: string): string {
+  const m = t.match(/(\d{4})-(\d{2})-(\d{2})/);
+  return m ? `${m[2]}-${m[3]}` : t;
+}
+
+/** 相邻点的日涨跌幅（%），长度比点数少 1 */
+function dailyChanges(ft: FundTrend): number[] {
+  const p = ft.points;
+  const out: number[] = [];
+  for (let i = 1; i < p.length; i++) {
+    const prev = p[i - 1].price;
+    out.push(prev ? ((p[i].price - prev) / prev) * 100 : 0);
+  }
+  return out;
+}
+
+/** 走势区：根据模式渲染曲线 / 净值列表 / 涨跌幅度柱 */
+function FundTrendView({ ft, mode }: { ft: FundTrend; mode: TrendMode }) {
+  if (mode === 'curve') {
+    return <Sparkline trend={ft} width={1000} height={160} responsive fill />;
+  }
+
+  if (mode === 'nav') {
+    const rows = [...ft.points].reverse(); // 最新在前
+    return (
+      <div className="custom-scrollbar h-full overflow-y-auto pr-1">
+        <div className="grid grid-cols-2 gap-x-6 gap-y-0.5">
+          {rows.map((pt) => (
+            <div
+              key={pt.t}
+              className="flex items-center justify-between border-b border-outline-variant/30 py-1.5"
+            >
+              <span className="text-[11px] text-on-surface-variant">{shortDate(pt.t)}</span>
+              <span className="font-mono-data text-[13px] text-on-surface">
+                {formatNum(pt.price, 4)}
+              </span>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  // 涨跌幅度：竖向柱（涨红跌绿）
+  const chg = dailyChanges(ft);
+  if (chg.length < 2) {
+    return (
+      <div className="flex h-full items-center justify-center text-body-md text-on-surface-variant">
+        数据不足
+      </div>
+    );
+  }
+  const W = 1000;
+  const H = 160;
+  const mid = H / 2;
+  const n = chg.length;
+  const slot = W / n;
+  const bw = Math.min(slot * 0.6, 16);
+  const maxAbs = Math.max(...chg.map(Math.abs), 0.1);
+  const upColor = '#ef4444';
+  const downColor = '#10b981';
+  return (
+    <svg
+      viewBox={`0 0 ${W} ${H}`}
+      preserveAspectRatio="none"
+      className="h-full w-full"
+      style={{ display: 'block' }}
+    >
+      <line x1={0} x2={W} y1={mid} y2={mid} stroke="var(--al-outline-variant)" strokeWidth={1} />
+      {chg.map((c, i) => {
+        const h = (Math.abs(c) / maxAbs) * (mid - 8);
+        const x = slot * (i + 0.5) - bw / 2;
+        const y = c >= 0 ? mid - h : mid;
+        const color = c >= 0 ? upColor : downColor;
+        return (
+          <rect key={i} x={x} y={y} width={bw} height={Math.max(h, 0.5)} fill={color}>
+            <title>{`${ft.points[i + 1]?.t ?? ''}：${c >= 0 ? '+' : ''}${c.toFixed(2)}%`}</title>
+          </rect>
+        );
+      })}
+    </svg>
+  );
+}
+
+/** 涨跌配色 — A股习惯：涨红跌绿 */
+function pnlColor(v: number | null | undefined): string {
+  if (v == null || v === 0) return 'text-on-surface-variant';
+  return v > 0 ? 'text-market-up' : 'text-market-down';
+}
+
+/** 每只基金按代码映射一个固定图标（对齐 redesign-preview.html 视觉） */
+const FUND_ICON: Record<string, { icon: string; cls: string }> = {
+  '011803': { icon: 'diamond', cls: 'bg-cost/10 text-cost' },
+  '014089': { icon: 'shield', cls: 'bg-primary-container text-on-primary-container' },
+  '007467': { icon: 'stacked_bar_chart', cls: 'bg-primary-container text-on-primary-container' },
+  '160706': { icon: 'hub', cls: 'bg-primary-container text-on-primary-container' },
+  '012349': { icon: 'language', cls: 'bg-tertiary-container text-on-tertiary-container' },
+  '011103': { icon: 'solar_power', cls: 'bg-cost/10 text-cost' },
+};
+
+/** 我的持仓卡片列表（匹配 redesign-preview.html：卡片式而非表格，点击展开走势 + 编辑成本） */
+export default function DesktopHoldings({
+  codes,
+  funds,
+  fundErrors,
+  costMap,
+  expandedFund,
+  onToggle,
+  fundTrends,
+  editing,
+  onEditToggle,
+  onSaveCost,
+  onCancelEdit,
+  onRemove,
+  onAddFund,
+}: {
+  codes: string[];
+  funds: Record<string, FundEstimate>;
+  fundErrors: Record<string, string>;
+  costMap: Record<string, FundCost>;
+  expandedFund: string | null;
+  onToggle: (code: string) => void;
+  fundTrends: Record<string, FundTrend | 'loading' | 'error'>;
+  editing: string | null;
+  onEditToggle: (code: string) => void;
+  onSaveCost: (code: string, amount: number | null, pnl: number | null) => void;
+  onCancelEdit: () => void;
+  onRemove: (code: string) => void;
+  onAddFund?: () => void;
+}) {
+  const totalMarketValue = codes.reduce((s, c) => s + (costMap[c]?.amount ?? 0), 0);
+  const totalCost = codes.reduce((s, c) => {
+    const a = costMap[c]?.amount;
+    const p = costMap[c]?.pnl;
+    return s + (a != null && p != null ? a - p : 0);
+  }, 0);
+
+  const [trendMode, setTrendMode] = useState<Record<string, TrendMode>>({});
+  const setMode = (c: string, m: TrendMode) =>
+    setTrendMode((prev) => ({ ...prev, [c]: m }));
+
+  return (
+    <section className="panel-card p-5">
+      {/* 标题 + 汇总 + 新增 */}
+      <div className="mb-4 flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <span
+            className="material-symbols-outlined text-[22px]"
+            style={{ color: 'var(--al-tertiary)' }}
+          >
+            account_balance_wallet
+          </span>
+          <h2 className="text-base font-bold text-on-surface">我的持仓</h2>
+        </div>
+        <div className="flex items-center gap-3">
+          <span className="text-xs text-on-surface-variant">
+            {codes.length} 只 · 总成本 ¥{formatNum(totalCost, 0)}
+          </span>
+          {onAddFund && (
+            <button
+              onClick={onAddFund}
+              className="rounded-lg bg-primary px-3 py-1 text-xs font-semibold text-on-primary transition-opacity hover:opacity-90"
+            >
+              新增
+            </button>
+          )}
+        </div>
+      </div>
+
+      <div className="flex flex-col gap-2.5">
+        {codes.length === 0 && (
+          <div
+            className="rounded-xl px-4 py-8 text-center text-sm text-on-surface-variant"
+            style={{ background: 'var(--al-sc-high)' }}
+          >
+            还没有自选基金，点击「新增」添加
+          </div>
+        )}
+
+        {codes.map((code) => {
+          const f = funds[code];
+          const err = fundErrors[code];
+          const cost = costMap[code];
+          const amount = cost?.amount ?? null;
+          const profit = cost?.pnl ?? null;
+          const costBasis =
+            amount != null && profit != null ? amount - profit : null;
+          const profitPct =
+            profit != null && costBasis != null && costBasis > 0
+              ? (profit / costBasis) * 100
+              : null;
+
+          const expanded = expandedFund === code;
+          const mode = trendMode[code] ?? 'curve';
+          const ft =
+            fundTrends[code] &&
+            fundTrends[code] !== 'loading' &&
+            fundTrends[code] !== 'error'
+              ? (fundTrends[code] as FundTrend)
+              : null;
+          const icon =
+            FUND_ICON[code] ?? { icon: 'payments', cls: 'bg-primary-container text-on-primary-container' };
+
+          return (
+            <Fragment key={code}>
+              {/* 卡片主体（点击展开/收起走势 + 编辑） */}
+              <button
+                onClick={() => onToggle(code)}
+                className="flex w-full items-center gap-3 rounded-xl p-3 text-left transition-[filter] hover:brightness-105"
+                style={{ background: 'var(--al-sc-high)' }}
+              >
+                <div
+                  className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg material-symbols-outlined text-[20px] ${icon.cls}`}
+                >
+                  {icon.icon}
+                </div>
+                <div className="min-w-0 flex-1">
+                  <div className="truncate text-sm font-semibold text-on-surface">
+                    {f?.name ?? code}
+                  </div>
+                  <div className="text-[11px] text-on-surface-variant">
+                    {code} · 市值 ¥{amount != null ? formatNum(amount) : '—'}
+                  </div>
+                </div>
+                <div className="shrink-0 text-right">
+                  <div
+                    className={`font-mono-data text-sm font-semibold ${pnlColor(profit)}`}
+                  >
+                    {profit != null ? `${profit >= 0 ? '+' : ''}${formatNum(profit)}` : '—'}
+                  </div>
+                  <div className={`font-mono-data text-[11px] ${pnlColor(profitPct ?? profit)}`}>
+                    {profitPct != null ? formatPct(profitPct) : ''}
+                  </div>
+                </div>
+              </button>
+
+              {/* 展开区：持仓明细 + 走势 + 编辑/移除 */}
+              {expanded && (
+                <div
+                  className="rounded-xl border border-outline-variant p-4"
+                  style={{ background: 'var(--al-sc-low)' }}
+                >
+                  <div className="mb-3 flex flex-wrap items-end gap-8">
+                    <div>
+                      <p className="text-label-caps mb-1 text-on-surface-variant">持有金额</p>
+                      <p className="font-mono-data text-lg text-on-surface">
+                        {amount != null ? `¥${formatNum(amount)}` : '—'}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-label-caps mb-1 text-on-surface-variant">成本</p>
+                      <p className="font-mono-data text-lg text-on-surface">
+                        {costBasis != null ? `¥${formatNum(costBasis)}` : '—'}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-label-caps mb-1 text-on-surface-variant">累计盈亏</p>
+                      <p className={`font-mono-data text-lg ${pnlColor(profit)}`}>
+                        {profit != null ? `${profit >= 0 ? '+' : ''}${formatNum(profit)}` : '—'}
+                      </p>
+                    </div>
+                  </div>
+
+                  {editing === code && (
+                    <FundCostEditor
+                      initial={amount != null || profit != null ? { amount, pnl: profit } : undefined}
+                      onSave={(a, p) => onSaveCost(code, a, p)}
+                      onCancel={onCancelEdit}
+                    />
+                  )}
+
+                  {/* 走势视图切换：曲线 / 净值 / 涨跌幅度 */}
+                  <div className="mb-2 flex items-center justify-between">
+                    <span className="text-label-caps text-on-surface-variant">
+                      {ft?.type === 'intraday' ? '盘中分时（场内逐分钟）' : '近 30 日单位净值'}
+                    </span>
+                    <div
+                      className="inline-flex rounded-lg p-0.5"
+                      style={{ background: 'var(--al-sc-low)' }}
+                      role="tablist"
+                      aria-label="走势视图切换"
+                    >
+                      {TREND_MODES.map((m) => (
+                        <button
+                          key={m.key}
+                          role="tab"
+                          aria-selected={mode === m.key}
+                          onClick={() => setMode(code, m.key)}
+                          className={`rounded-md px-2.5 py-1 text-label-caps transition-colors ${
+                            mode === m.key
+                              ? 'bg-primary-container text-on-primary-container'
+                              : 'text-on-surface-variant hover:text-on-surface'
+                          }`}
+                        >
+                          {m.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="h-40 w-full">
+                    {fundTrends[code] === 'loading' ? (
+                      <div className="flex h-full items-center justify-center text-body-md text-on-surface-variant">
+                        加载走势中…
+                      </div>
+                    ) : ft ? (
+                      <FundTrendView ft={ft} mode={mode} />
+                    ) : (
+                      <div className="flex h-full items-center justify-center text-body-md text-on-surface-variant">
+                        {fundTrends[code] === 'error' ? '走势暂不可用' : '该基金暂无走势数据'}
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="mt-3 flex items-center gap-3">
+                    <button
+                      onClick={() => onEditToggle(code)}
+                      className="text-label-caps text-primary transition-opacity hover:opacity-80"
+                    >
+                      {editing === code ? '收起编辑' : '编辑持仓'}
+                    </button>
+                    <button
+                      onClick={() => onRemove(code)}
+                      className="text-label-caps text-market-up ml-auto transition-opacity hover:opacity-80"
+                    >
+                      移除基金
+                    </button>
+                  </div>
+
+                  {err && <p className="mt-2 text-xs text-market-up">{err}</p>}
+                </div>
+              )}
+            </Fragment>
+          );
+        })}
+      </div>
+    </section>
+  );
+}

@@ -39,7 +39,7 @@ export default function HoldingsCard({
           </div>
         </div>
         <p className="mt-2 text-[11px] text-[var(--muted)]">
-          在「持仓」中为基金填写成本价与份额，即可查看累计收益与今日盈亏。
+          在「持仓」中为基金填写持有金额与盈亏，即可查看累计收益与今日盈亏。
         </p>
       </section>
     );

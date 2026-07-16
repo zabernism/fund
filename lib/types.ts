@@ -68,10 +68,10 @@ export interface SectorWatchItem {
   type: SectorType;
 }
 
-/** 基金持仓（成本价 / 份额），按基金代码索引 */
+/** 基金持仓：用户填写「持有金额」和「盈亏」，其余自动计算 */
 export interface FundCost {
-  cost: number | null; // 持仓成本价（净值）
-  shares: number | null; // 持仓份额
+  amount: number | null; // 当前持有金额（市值）
+  pnl: number | null; // 累计盈亏（正=赚，负=亏）
 }
 
 /** 分时序列点 */
@@ -98,6 +98,8 @@ export interface FundTrend {
 // ---------------------------------------------------------------------------
 // 黄金 / 贵金属
 // ---------------------------------------------------------------------------
+export type GoldCategory = 'spot' | 'bank' | 'brand';
+
 export interface GoldQuote {
   secid: string;
   name: string;
@@ -110,4 +112,40 @@ export interface GoldQuote {
   high?: number | null;
   /** 当日最低价 */
   low?: number | null;
+  /** 分类：spot=国际/国内现货，bank=银行纸黄金，brand=金店品牌金价 */
+  category?: GoldCategory;
+  /** 计价单位，如 元/克、美元/盎司、元/份 */
+  unit?: string;
+}
+
+// ---------------------------------------------------------------------------
+// 基金排行榜
+// ---------------------------------------------------------------------------
+/** 板块分类（按基金名称关键词推断） */
+export type FundSector =
+  | 'AI科技'
+  | '半导体'
+  | '白酒消费'
+  | '医药健康'
+  | '新能源'
+  | '军工'
+  | '金融地产'
+  | '红利低波'
+  | '港股'
+  | '债券'
+  | '商品'
+  | '指数增强'
+  | '其他';
+
+export interface FundRankItem {
+  code: string;
+  name: string;
+  /** 当日涨跌幅（%） */
+  changePct: number | null;
+  /** 最新净值 / 估算值 */
+  nav: number | null;
+  /** 近30日收益率（%） */
+  return30d: number | null;
+  /** 归属板块 */
+  sector: FundSector;
 }
