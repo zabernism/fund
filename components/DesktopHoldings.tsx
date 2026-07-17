@@ -4,7 +4,7 @@ import { Fragment, useState } from 'react';
 import type { FundCost, FundEstimate, FundTrend, FundSector } from '@/lib/types';
 import { formatNum, formatPct } from '@/lib/format';
 import { classifyFundSector, type FundMetrics } from '@/lib/finance';
-import { riskLevelFromMetrics, riskLabel, riskColor, fmtSignedPct } from '@/lib/metrics';
+import { riskLevelFromMetrics, riskLabel, riskColor } from '@/lib/metrics';
 import Sparkline from './Sparkline';
 import { FundCostEditor } from './FundRow';
 
@@ -105,27 +105,6 @@ function FundTrendView({ ft, mode }: { ft: FundTrend; mode: TrendMode }) {
 function pnlColor(v: number | null | undefined): string {
   if (v == null || v === 0) return 'text-on-surface-variant';
   return v > 0 ? 'text-market-up' : 'text-market-down';
-}
-
-/** 信息面板：标题 + 键值行列表 */
-function InfoPanel({
-  title,
-  children,
-}: {
-  title: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <div
-      className="rounded-xl border border-outline-variant/40 px-4 py-3"
-      style={{ background: 'var(--al-sc-low)' }}
-    >
-      <h3 className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-on-surface-variant">
-        {title}
-      </h3>
-      {children}
-    </div>
-  );
 }
 
 /** 风险等级 pill 标签 */
@@ -302,10 +281,22 @@ export default function DesktopHoldings({
                   {icon.icon}
                 </div>
 
-                {/* 左中：名称 + 代码 + 市值 + 当日盈亏 */}
+                {/* 左中：名称 + 板块/风险标签 + 代码 + 市值 + 当日盈亏 */}
                 <div className="min-w-0 flex-1">
-                  <div className="truncate text-base font-bold text-on-surface leading-tight">
-                    {f?.name ?? code}
+                  <div className="flex items-center gap-2">
+                    <span className="truncate text-base font-bold text-on-surface leading-tight">
+                      {f?.name ?? code}
+                    </span>
+                    {/* 板块标签（粗体）+ 风险 pill */}
+                    <span
+                      className="shrink-0 rounded-md px-1.5 py-px text-[11px] font-bold"
+                      style={{ background: 'var(--al-primary-container)', color: 'var(--al-on-primary-container)' }}
+                    >
+                      {sector}
+                    </span>
+                    {!metricsLoading && (
+                      <RiskBadge level={risk} />
+                    )}
                   </div>
                   <div className="mt-0.5 flex items-center gap-2">
                     <span
@@ -340,78 +331,6 @@ export default function DesktopHoldings({
                   )}
                 </div>
               </button>
-
-              {/* ═══ 三信息面板并排 ═══ */}
-              <div className="grid grid-cols-3 gap-3 px-1 pb-3">
-                {/* ── 基础信息 ── */}
-                <InfoPanel title="基础信息">
-                  <div className="space-y-2.5">
-                    <div className="flex items-center justify-between gap-2">
-                      <span className="text-xs text-on-surface-variant">所属板块</span>
-                      <span className="text-sm font-bold text-on-surface">{sector}</span>
-                    </div>
-                    <div className="flex items-center justify-between gap-2">
-                      <span className="text-xs text-on-surface-variant">风险等级</span>
-                      {metricsLoading ? (
-                        <span className="text-xs text-on-surface-variant">计算中</span>
-                      ) : (
-                        <RiskBadge level={risk} />
-                      )}
-                    </div>
-                  </div>
-                </InfoPanel>
-
-                {/* ── 业绩表现 ── */}
-                <InfoPanel title="业绩表现">
-                  <div className="space-y-2.5">
-                    <div className="flex items-center justify-between gap-2">
-                      <span className="text-xs text-on-surface-variant">近3月收益</span>
-                      <span className={`text-sm font-semibold tabular-nums ${pnlColor(mData?.yRet)}`}>
-                        {metricsLoading ? '计算中' : fmtSignedPct(mData?.yRet)}
-                      </span>
-                    </div>
-                    <div className="flex items-center justify-between gap-2">
-                      <span className="text-xs text-on-surface-variant">最大回撤</span>
-                      <span className={`text-sm font-semibold tabular-nums ${
-                        mData?.mdd != null && mData.mdd > 0 ? 'text-market-up' : 'text-market-down'
-                      }`}>
-                        {metricsLoading ? '计算中' : fmtSignedPct(mData?.mdd)}
-                      </span>
-                    </div>
-                  </div>
-                </InfoPanel>
-
-                {/* ── 波动分析 ── */}
-                <InfoPanel title="波动分析">
-                  <div className="space-y-2.5">
-                    <div className="flex items-center justify-between gap-2">
-                      <span className="text-xs text-on-surface-variant">年化波动率</span>
-                      <span className="text-sm font-semibold tabular-nums text-on-surface">
-                        {metricsLoading
-                          ? '计算中'
-                          : mData?.vol != null
-                            ? `${mData.vol.toFixed(2)}%`
-                            : '—'}
-                      </span>
-                    </div>
-                    <div className="flex items-center justify-between gap-2">
-                      <span className="text-xs text-on-surface-variant">夏普比率</span>
-                      <span className="text-sm font-semibold tabular-nums text-on-surface">
-                        {metricsLoading
-                          ? '计算中'
-                          : (() => {
-                              const v = mData?.vol;
-                              const r = mData?.yRet;
-                              if (v != null && v > 0 && r != null) {
-                                return ((r / 100 - 0.03) / (v / 100)).toFixed(2);
-                              }
-                              return '—';
-                            })()}
-                      </span>
-                    </div>
-                  </div>
-                </InfoPanel>
-              </div>
 
               {/* ═══ 展开区：业绩趋势图 + 编辑/移除 ═══ */}
               {expanded && (
