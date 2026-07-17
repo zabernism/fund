@@ -3,6 +3,8 @@
 import { useState } from 'react';
 import type { FundCost, FundEstimate, FundTrend } from '@/lib/types';
 import { changeColor, formatNum, formatPct } from '@/lib/format';
+import { classifyFundSector, type FundMetrics } from '@/lib/finance';
+import { riskLevelFromMetrics, riskLabel, riskColor, fmtSignedPct } from '@/lib/metrics';
 import FlashNum from './FlashNum';
 import Sparkline from './Sparkline';
 import { IconChevron, IconPencil, IconTrash } from './icons';
@@ -70,6 +72,24 @@ export function FundCostEditor({
   );
 }
 
+/** 指标小格：标签在上、数值在下（风险收益四宫格） */
+function MetricCell({
+  label,
+  value,
+  cls,
+}: {
+  label: string;
+  value: string;
+  cls: string;
+}) {
+  return (
+    <div className="flex flex-col items-center justify-center rounded-lg bg-[var(--card-hover)] px-1 py-1.5">
+      <span className="text-[9px] text-[var(--muted)]">{label}</span>
+      <span className={`text-[11px] font-semibold ${cls}`}>{value}</span>
+    </div>
+  );
+}
+
 export default function FundRow({
   code,
   fund,
@@ -83,6 +103,7 @@ export default function FundRow({
   onSaveCost,
   onCancelEdit,
   onRemove,
+  metrics,
 }: {
   code: string;
   fund?: FundEstimate;
@@ -96,6 +117,7 @@ export default function FundRow({
   onSaveCost: (amount: number | null, pnl: number | null) => void;
   onCancelEdit: () => void;
   onRemove: () => void;
+  metrics?: FundMetrics | 'loading' | 'error' | null;
 }) {
   const up = (fund?.changePct ?? 0) > 0;
   const down = (fund?.changePct ?? 0) < 0;
@@ -115,6 +137,12 @@ export default function FundRow({
       : null;
 
   const ft = trend && trend !== 'loading' && trend !== 'error' ? trend : null;
+
+  // 板块 + 风险收益指标（近3月 / 年化波动 / 最大回撤 / 风险等级）
+  const sector = classifyFundSector(fund?.name ?? code);
+  const mData = metrics && metrics !== 'loading' && metrics !== 'error' ? metrics : null;
+  const metricsLoading = metrics === 'loading';
+  const risk = riskLevelFromMetrics(mData);
 
   return (
     <div className={`glass-soft border-l-2 px-3 py-2.5 ${accent}`}>
@@ -193,6 +221,48 @@ export default function FundRow({
           )}
         </div>
       )}
+
+      {/* 风险收益指标条：板块 + 近3月 / 年化波动 / 最大回撤 / 风险（与收益并排） */}
+      <div className="mt-2 grid grid-cols-5 gap-1.5">
+        <div className="flex flex-col justify-center rounded-lg bg-[var(--card-hover)] px-2 py-1.5">
+          <span className="text-[9px] text-[var(--muted)]">板块</span>
+          <span className="truncate text-[11px] font-semibold text-[var(--text)]">
+            {sector}
+          </span>
+        </div>
+        <MetricCell
+          label="近3月"
+          value={metricsLoading ? '计算中' : fmtSignedPct(mData?.yRet)}
+          cls={changeColor(mData?.yRet ?? null)}
+        />
+        <MetricCell
+          label="年化波动"
+          value={
+            metricsLoading
+              ? '计算中'
+              : mData?.vol != null
+                ? `${mData.vol.toFixed(1)}%`
+                : '—'
+          }
+          cls="text-[var(--text)]"
+        />
+        <MetricCell
+          label="最大回撤"
+          value={
+            metricsLoading
+              ? '计算中'
+              : mData?.mdd != null
+                ? `${mData.mdd.toFixed(1)}%`
+                : '—'
+          }
+          cls="text-down"
+        />
+        <MetricCell
+          label="风险"
+          value={metricsLoading ? '计算中' : riskLabel(risk)}
+          cls={riskColor(risk)}
+        />
+      </div>
 
       <div className="mt-2 flex items-center justify-end gap-1.5">
         <button

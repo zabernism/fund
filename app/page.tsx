@@ -33,6 +33,7 @@ import DesktopHeader from '@/components/DesktopHeader';
 import PreciousMetalsCard from '@/components/PreciousMetalsCard';
 import IndicesCard from '@/components/IndicesCard';
 import DesktopHoldings from '@/components/DesktopHoldings';
+import { fetchFundMetrics, type FundMetrics } from '@/lib/finance';
 
 const STORAGE_FUNDS = 'fund-dashboard:codes';
 const STORAGE_SECTORS = 'fund-dashboard:sectors';
@@ -85,6 +86,24 @@ export default function Page() {
   const [fundTrends, setFundTrends] = useState<
     Record<string, FundTrend | 'loading' | 'error'>
   >({});
+  /** 每只基金的风险收益指标（近3月收益 / 年化波动 / 最大回撤） */
+  const [fundMetrics, setFundMetrics] = useState<
+    Record<string, FundMetrics | 'loading' | 'error'>
+  >({});
+  const metricsFetchedRef = useRef<Set<string>>(new Set());
+
+  // 持仓基金的风险收益指标：首次出现时拉取一次（按 code 去重，避免重复请求）
+  useEffect(() => {
+    if (codes.length === 0) return;
+    codes.forEach((code) => {
+      if (metricsFetchedRef.current.has(code)) return;
+      metricsFetchedRef.current.add(code);
+      setFundMetrics((m) => ({ ...m, [code]: 'loading' }));
+      fetchFundMetrics(code)
+        .then((d) => setFundMetrics((m) => ({ ...m, [code]: d })))
+        .catch(() => setFundMetrics((m) => ({ ...m, [code]: 'error' })));
+    });
+  }, [codes]);
 
   // 预览强制开关：?view=desktop / ?view=mobile 可无视视口宽度查看指定端（默认 auto 走响应式）
   const [forceView, setForceView] = useState<'auto' | 'desktop' | 'mobile'>(
@@ -652,6 +671,7 @@ export default function Page() {
                     onSaveCost={(c, s) => saveCost(code, c, s)}
                     onCancelEdit={() => setEditing(null)}
                     onRemove={() => removeFund(code)}
+                    metrics={fundMetrics[code]}
                   />
                 ))
               )}
@@ -705,6 +725,7 @@ export default function Page() {
                   onAddFund={() => setSearchOpen(true)}
                   todayPnL={totals.todayPnL}
                   todayPct={totals.todayPct}
+                  fundMetrics={fundMetrics}
                 />
               )}
 

@@ -1,8 +1,10 @@
 'use client';
 
 import { Fragment, useState } from 'react';
-import type { FundCost, FundEstimate, FundTrend } from '@/lib/types';
+import type { FundCost, FundEstimate, FundTrend, FundSector } from '@/lib/types';
 import { formatNum, formatPct } from '@/lib/format';
+import { classifyFundSector, type FundMetrics } from '@/lib/finance';
+import { riskLevelFromMetrics, riskLabel, riskColor, fmtSignedPct } from '@/lib/metrics';
 import Sparkline from './Sparkline';
 import { FundCostEditor } from './FundRow';
 
@@ -105,6 +107,27 @@ function pnlColor(v: number | null | undefined): string {
   return v > 0 ? 'text-market-up' : 'text-market-down';
 }
 
+/** 指标小格：标签在上、数值在下（用于风险收益四宫格） */
+function MetricCell({
+  label,
+  value,
+  cls,
+}: {
+  label: string;
+  value: string;
+  cls: string;
+}) {
+  return (
+    <div
+      className="flex flex-col items-center justify-center rounded-lg px-1 py-1.5"
+      style={{ background: 'var(--al-sc-low)' }}
+    >
+      <span className="text-[9px] text-on-surface-variant">{label}</span>
+      <span className={`text-[11px] font-semibold ${cls}`}>{value}</span>
+    </div>
+  );
+}
+
 /** 每只基金按代码映射一个固定图标（对齐 redesign-preview.html 视觉） */
 const FUND_ICON: Record<string, { icon: string; cls: string }> = {
   '011803': { icon: 'diamond', cls: 'bg-cost/10 text-cost' },
@@ -132,6 +155,7 @@ export default function DesktopHoldings({
   onAddFund,
   todayPnL,
   todayPct,
+  fundMetrics,
 }: {
   codes: string[];
   funds: Record<string, FundEstimate>;
@@ -148,6 +172,7 @@ export default function DesktopHoldings({
   onAddFund?: () => void;
   todayPnL?: number | null;
   todayPct?: number | null;
+  fundMetrics?: Record<string, FundMetrics | 'loading' | 'error' | null>;
 }) {
   const totalMarketValue = codes.reduce((s, c) => s + (costMap[c]?.amount ?? 0), 0);
   const totalCost = codes.reduce((s, c) => {
@@ -223,6 +248,14 @@ export default function DesktopHoldings({
           const dailyPnl =
             amount != null && dailyPct != null ? (amount * dailyPct) / 100 : null;
 
+          // 板块 + 风险收益指标（近3月 / 年化波动 / 最大回撤 / 风险等级）
+          const sector: FundSector = classifyFundSector(f?.name ?? code);
+          const mRaw = fundMetrics?.[code];
+          const mData =
+            mRaw && mRaw !== 'loading' && mRaw !== 'error' ? mRaw : null;
+          const metricsLoading = mRaw === 'loading';
+          const risk = riskLevelFromMetrics(mData);
+
           const expanded = expandedFund === code;
           const mode = trendMode[code] ?? 'curve';
           const ft =
@@ -271,6 +304,51 @@ export default function DesktopHoldings({
                   </div>
                 </div>
               </button>
+
+              {/* 风险收益指标条：板块 + 近3月 / 年化波动 / 最大回撤 / 风险（与右侧收益并排） */}
+              <div className="grid grid-cols-5 gap-1.5 px-3 pb-3">
+                <div
+                  className="flex flex-col justify-center rounded-lg px-2 py-1.5"
+                  style={{ background: 'var(--al-sc-low)' }}
+                >
+                  <span className="text-[9px] text-on-surface-variant">板块</span>
+                  <span className="truncate text-[11px] font-semibold text-on-surface">
+                    {sector}
+                  </span>
+                </div>
+                <MetricCell
+                  label="近3月"
+                  value={metricsLoading ? '计算中' : fmtSignedPct(mData?.yRet)}
+                  cls={pnlColor(mData?.yRet)}
+                />
+                <MetricCell
+                  label="年化波动"
+                  value={
+                    metricsLoading
+                      ? '计算中'
+                      : mData?.vol != null
+                        ? `${mData.vol.toFixed(1)}%`
+                        : '—'
+                  }
+                  cls="text-on-surface"
+                />
+                <MetricCell
+                  label="最大回撤"
+                  value={
+                    metricsLoading
+                      ? '计算中'
+                      : mData?.mdd != null
+                        ? `${mData.mdd.toFixed(1)}%`
+                        : '—'
+                  }
+                  cls="text-market-down"
+                />
+                <MetricCell
+                  label="风险"
+                  value={metricsLoading ? '计算中' : riskLabel(risk)}
+                  cls={riskColor(risk)}
+                />
+              </div>
 
               {/* 展开区：持仓明细 + 走势 + 编辑/移除 */}
               {expanded && (
