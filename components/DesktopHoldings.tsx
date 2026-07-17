@@ -133,6 +133,23 @@ const FUND_ICON: Record<string, { icon: string; cls: string }> = {
   '011103': { icon: 'solar_power', cls: 'bg-cost/10 text-cost' },
 };
 
+/** 新增基金无固定图标时，按板块自动匹配最接近的风格 */
+const SECTOR_ICON: Record<FundSector, { icon: string; cls: string }> = {
+  'AI科技': { icon: 'memory', cls: 'bg-tertiary-container text-on-tertiary-container' },
+  '半导体': { icon: 'developer_board', cls: 'bg-primary-container text-on-primary-container' },
+  '白酒消费': { icon: 'local_bar', cls: 'bg-tertiary-container text-on-tertiary-container' },
+  '医药健康': { icon: 'health_and_safety', cls: 'bg-primary-container text-on-primary-container' },
+  '新能源': { icon: 'solar_power', cls: 'bg-cost/10 text-cost' },
+  '军工': { icon: 'shield', cls: 'bg-primary-container text-on-primary-container' },
+  '金融地产': { icon: 'account_balance', cls: 'bg-primary-container text-on-primary-container' },
+  '红利低波': { icon: 'stacked_bar_chart', cls: 'bg-primary-container text-on-primary-container' },
+  '港股': { icon: 'language', cls: 'bg-tertiary-container text-on-tertiary-container' },
+  '债券': { icon: 'shield', cls: 'bg-primary-container text-on-primary-container' },
+  '商品': { icon: 'diamond', cls: 'bg-cost/10 text-cost' },
+  '指数增强': { icon: 'hub', cls: 'bg-primary-container text-on-primary-container' },
+  '其他': { icon: 'payments', cls: 'bg-primary-container text-on-primary-container' },
+};
+
 /** 我的持仓卡片列表（匹配 redesign-preview.html：卡片式而非表格，点击展开走势 + 编辑成本） */
 export default function DesktopHoldings({
   codes,
@@ -260,7 +277,7 @@ export default function DesktopHoldings({
               ? (fundTrends[code] as FundTrend)
               : null;
           const icon =
-            FUND_ICON[code] ?? { icon: 'payments', cls: 'bg-primary-container text-on-primary-container' };
+            FUND_ICON[code] ?? SECTOR_ICON[classifyFundSector(f?.name ?? code)];
 
           return (
             <Fragment key={code}>
@@ -270,13 +287,9 @@ export default function DesktopHoldings({
                 className="flex w-full items-center gap-4 rounded-xl p-4 text-left transition-[filter] hover:brightness-105"
                 style={{ background: 'var(--al-sc-high)' }}
               >
-                {/* 左：深色圆角图标 */}
+                {/* 左：彩色圆角图标（与原来一致的视觉） */}
                 <div
-                  className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-xl material-symbols-outlined text-[24px] ${icon.cls}`}
-                  style={{
-                    background: 'rgba(0,0,0,0.72)',
-                    color: '#fff',
-                  }}
+                  className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg material-symbols-outlined text-[20px] ${icon.cls}`}
                 >
                   {icon.icon}
                 </div>
