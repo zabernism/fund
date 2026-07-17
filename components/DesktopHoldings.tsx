@@ -107,24 +107,40 @@ function pnlColor(v: number | null | undefined): string {
   return v > 0 ? 'text-market-up' : 'text-market-down';
 }
 
-/** 指标小格：标签在上、数值在下（用于风险收益四宫格） */
-function MetricCell({
-  label,
-  value,
-  cls,
+/** 信息面板：标题 + 键值行列表 */
+function InfoPanel({
+  title,
+  children,
 }: {
-  label: string;
-  value: string;
-  cls: string;
+  title: string;
+  children: React.ReactNode;
 }) {
   return (
     <div
-      className="flex flex-col items-center justify-center rounded-lg px-1 py-1.5"
+      className="rounded-xl border border-outline-variant/40 px-4 py-3"
       style={{ background: 'var(--al-sc-low)' }}
     >
-      <span className="text-[9px] text-on-surface-variant">{label}</span>
-      <span className={`text-[11px] font-semibold ${cls}`}>{value}</span>
+      <h3 className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-on-surface-variant">
+        {title}
+      </h3>
+      {children}
     </div>
+  );
+}
+
+/** 风险等级 pill 标签 */
+function RiskBadge({ level }: { level: number }) {
+  const cls = [
+    'bg-emerald-100 text-emerald-700',
+    'bg-teal-100 text-teal-700',
+    'bg-amber-100 text-amber-700',
+    'bg-orange-100 text-orange-700',
+    'bg-red-100 text-red-700',
+  ][level - 1] ?? 'bg-amber-100 text-amber-700';
+  return (
+    <span className={`inline-block rounded-full px-2.5 py-0.5 text-xs font-semibold ${cls}`}>
+      {riskLabel(level)}
+    </span>
   );
 }
 
@@ -269,142 +285,146 @@ export default function DesktopHoldings({
 
           return (
             <Fragment key={code}>
-              {/* 卡片主体（点击展开/收起走势 + 编辑） */}
+              {/* ═══ 卡片头：左侧图标+名称+市值+当日盈亏  |  右侧累计持有收益（大号） ═══ */}
               <button
                 onClick={() => onToggle(code)}
-                className="flex w-full items-center gap-3 rounded-xl p-3 text-left transition-[filter] hover:brightness-105"
+                className="flex w-full items-center gap-4 rounded-xl p-4 text-left transition-[filter] hover:brightness-105"
                 style={{ background: 'var(--al-sc-high)' }}
               >
+                {/* 左：深色圆角图标 */}
                 <div
-                  className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg material-symbols-outlined text-[20px] ${icon.cls}`}
+                  className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-xl material-symbols-outlined text-[24px] ${icon.cls}`}
+                  style={{
+                    background: 'rgba(0,0,0,0.72)',
+                    color: '#fff',
+                  }}
                 >
                   {icon.icon}
                 </div>
+
+                {/* 左中：名称 + 代码 + 市值 + 当日盈亏 */}
                 <div className="min-w-0 flex-1">
-                  <div className="truncate text-sm font-semibold text-on-surface">
+                  <div className="truncate text-base font-bold text-on-surface leading-tight">
                     {f?.name ?? code}
                   </div>
-                  <div className="text-[11px] text-on-surface-variant">
-                    {code} · 市值 ¥{amount != null ? formatNum(amount) : '—'}
+                  <div className="mt-0.5 flex items-center gap-2">
+                    <span
+                      className="rounded-md px-1.5 py-px text-[10px] font-medium"
+                      style={{ background: 'var(--al-sc-low)', color: 'var(--al-on-surface-variant)' }}
+                    >
+                      {code}
+                    </span>
+                    <span className="text-[12px] text-on-surface-variant">
+                      市值 ¥{amount != null ? formatNum(amount) : '—'}
+                    </span>
                   </div>
                   {dailyPnl != null && (
-                    <div className={`text-[10px] ${pnlColor(dailyPnl)}`}>
-                      当日 {dailyPnl >= 0 ? '+' : ''}¥{formatNum(dailyPnl)}（{formatPct(dailyPct)}）
+                    <div className={`mt-1 text-xs font-medium ${pnlColor(dailyPnl)}`}>
+                      当日盈亏{' '}
+                      {dailyPnl >= 0 ? '+' : ''}¥{formatNum(dailyPnl)}{' '}
+                      <span className="font-normal">({formatPct(dailyPct)})</span>
                     </div>
                   )}
                 </div>
+
+                {/* 右：累计持有收益（大号） */}
                 <div className="shrink-0 text-right">
-                  <div
-                    className={`font-mono-data text-sm font-semibold ${pnlColor(profit)}`}
-                  >
-                    {profit != null ? `${profit >= 0 ? '+' : ''}${formatNum(profit)}` : '—'}
+                  <div className="text-[11px] text-on-surface-variant">累计持有收益</div>
+                  <div className={`font-mono-data text-2xl font-bold leading-tight ${pnlColor(profit)}`}>
+                    {profit != null ? `${profit >= 0 ? '' : '-'}¥${formatNum(Math.abs(profit))}` : '—'}
                   </div>
-                  <div className={`font-mono-data text-[11px] ${pnlColor(profitPct ?? profit)}`}>
-                    {profitPct != null ? formatPct(profitPct) : ''}
-                  </div>
+                  {profitPct != null && (
+                    <div className={`font-mono-data text-sm font-medium ${pnlColor(profit)}`}>
+                      {profitPct >= 0 ? '+' : ''}{formatPct(profitPct)}
+                    </div>
+                  )}
                 </div>
               </button>
 
-              {/* 风险收益指标条：板块 + 近3月 / 年化波动 / 最大回撤 / 风险（与右侧收益并排） */}
-              <div className="grid grid-cols-5 gap-1.5 px-3 pb-3">
-                <div
-                  className="flex flex-col justify-center rounded-lg px-2 py-1.5"
-                  style={{ background: 'var(--al-sc-low)' }}
-                >
-                  <span className="text-[9px] text-on-surface-variant">板块</span>
-                  <span className="truncate text-[11px] font-semibold text-on-surface">
-                    {sector}
-                  </span>
-                </div>
-                <MetricCell
-                  label="近3月"
-                  value={metricsLoading ? '计算中' : fmtSignedPct(mData?.yRet)}
-                  cls={pnlColor(mData?.yRet)}
-                />
-                <MetricCell
-                  label="年化波动"
-                  value={
-                    metricsLoading
-                      ? '计算中'
-                      : mData?.vol != null
-                        ? `${mData.vol.toFixed(1)}%`
-                        : '—'
-                  }
-                  cls="text-on-surface"
-                />
-                <MetricCell
-                  label="最大回撤"
-                  value={
-                    metricsLoading
-                      ? '计算中'
-                      : mData?.mdd != null
-                        ? `${mData.mdd.toFixed(1)}%`
-                        : '—'
-                  }
-                  cls="text-market-down"
-                />
-                <MetricCell
-                  label="风险"
-                  value={metricsLoading ? '计算中' : riskLabel(risk)}
-                  cls={riskColor(risk)}
-                />
+              {/* ═══ 三信息面板并排 ═══ */}
+              <div className="grid grid-cols-3 gap-3 px-1 pb-3">
+                {/* ── 基础信息 ── */}
+                <InfoPanel title="基础信息">
+                  <div className="space-y-2.5">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-xs text-on-surface-variant">所属板块</span>
+                      <span className="text-sm font-bold text-on-surface">{sector}</span>
+                    </div>
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-xs text-on-surface-variant">风险等级</span>
+                      {metricsLoading ? (
+                        <span className="text-xs text-on-surface-variant">计算中</span>
+                      ) : (
+                        <RiskBadge level={risk} />
+                      )}
+                    </div>
+                  </div>
+                </InfoPanel>
+
+                {/* ── 业绩表现 ── */}
+                <InfoPanel title="业绩表现">
+                  <div className="space-y-2.5">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-xs text-on-surface-variant">近3月收益</span>
+                      <span className={`text-sm font-semibold tabular-nums ${pnlColor(mData?.yRet)}`}>
+                        {metricsLoading ? '计算中' : fmtSignedPct(mData?.yRet)}
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-xs text-on-surface-variant">最大回撤</span>
+                      <span className={`text-sm font-semibold tabular-nums ${
+                        mData?.mdd != null && mData.mdd > 0 ? 'text-market-up' : 'text-market-down'
+                      }`}>
+                        {metricsLoading ? '计算中' : fmtSignedPct(mData?.mdd)}
+                      </span>
+                    </div>
+                  </div>
+                </InfoPanel>
+
+                {/* ── 波动分析 ── */}
+                <InfoPanel title="波动分析">
+                  <div className="space-y-2.5">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-xs text-on-surface-variant">年化波动率</span>
+                      <span className="text-sm font-semibold tabular-nums text-on-surface">
+                        {metricsLoading
+                          ? '计算中'
+                          : mData?.vol != null
+                            ? `${mData.vol.toFixed(2)}%`
+                            : '—'}
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-xs text-on-surface-variant">夏普比率</span>
+                      <span className="text-sm font-semibold tabular-nums text-on-surface">
+                        {metricsLoading
+                          ? '计算中'
+                          : (() => {
+                              const v = mData?.vol;
+                              const r = mData?.yRet;
+                              if (v != null && v > 0 && r != null) {
+                                return ((r / 100 - 0.03) / (v / 100)).toFixed(2);
+                              }
+                              return '—';
+                            })()}
+                      </span>
+                    </div>
+                  </div>
+                </InfoPanel>
               </div>
 
-              {/* 展开区：持仓明细 + 走势 + 编辑/移除 */}
+              {/* ═══ 展开区：业绩趋势图 + 编辑/移除 ═══ */}
               {expanded && (
                 <div
                   className="rounded-xl border border-outline-variant p-4"
                   style={{ background: 'var(--al-sc-low)' }}
                 >
-                  <div className="mb-3 flex flex-wrap items-end gap-8">
-                    <div>
-                      <p className="text-label-caps mb-1 text-on-surface-variant">持有金额</p>
-                      <p className="font-mono-data text-lg text-on-surface">
-                        {amount != null ? `¥${formatNum(amount)}` : '—'}
-                      </p>
-                    </div>
-                    <div>
-                      <p className="text-label-caps mb-1 text-on-surface-variant">成本</p>
-                      <p className="font-mono-data text-lg text-on-surface">
-                        {costBasis != null ? `¥${formatNum(costBasis)}` : '—'}
-                      </p>
-                    </div>
-                    <div>
-                    <p className="text-label-caps mb-1 text-on-surface-variant">累计盈亏</p>
-                    <p className={`font-mono-data text-lg ${pnlColor(profit)}`}>
-                      {profit != null ? `${profit >= 0 ? '+' : ''}${formatNum(profit)}` : '—'}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-label-caps mb-1 text-on-surface-variant">当日盈亏</p>
-                    <p className={`font-mono-data text-lg ${pnlColor(dailyPnl)}`}>
-                      {dailyPnl != null ? `${dailyPnl >= 0 ? '+' : ''}${formatNum(dailyPnl)}` : '—'}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-label-caps mb-1 text-on-surface-variant">当日收益</p>
-                    <p className={`font-mono-data text-lg ${pnlColor(dailyPct)}`}>
-                      {dailyPct != null ? formatPct(dailyPct) : '—'}
-                    </p>
-                  </div>
-                </div>
-
-                  {editing === code && (
-                    <FundCostEditor
-                      initial={amount != null || profit != null ? { amount, pnl: profit } : undefined}
-                      onSave={(a, p) => onSaveCost(code, a, p)}
-                      onCancel={onCancelEdit}
-                    />
-                  )}
-
-                  {/* 走势视图切换：曲线 / 净值 / 涨跌幅度 */}
+                  {/* 业绩趋势标题 + 视图切换 */}
                   <div className="mb-2 flex items-center justify-between">
-                    <span className="text-label-caps text-on-surface-variant">
-                      {ft?.type === 'intraday' ? '盘中分时（场内逐分钟）' : '近 30 日单位净值'}
-                    </span>
+                    <h3 className="text-sm font-bold text-on-surface">业绩趋势</h3>
                     <div
                       className="inline-flex rounded-lg p-0.5"
-                      style={{ background: 'var(--al-sc-low)' }}
+                      style={{ background: 'var(--al-surface-container)' }}
                       role="tablist"
                       aria-label="走势视图切换"
                     >
@@ -414,9 +434,9 @@ export default function DesktopHoldings({
                           role="tab"
                           aria-selected={mode === m.key}
                           onClick={() => setMode(code, m.key)}
-                          className={`rounded-md px-2.5 py-1 text-label-caps transition-colors ${
+                          className={`rounded-md px-2.5 py-1 text-xs font-medium transition-colors ${
                             mode === m.key
-                              ? 'bg-primary-container text-on-primary-container'
+                              ? 'bg-primary text-on-primary'
                               : 'text-on-surface-variant hover:text-on-surface'
                           }`}
                         >
@@ -426,7 +446,7 @@ export default function DesktopHoldings({
                     </div>
                   </div>
 
-                  <div className="h-40 w-full">
+                  <div className="h-52 w-full">
                     {fundTrends[code] === 'loading' ? (
                       <div className="flex h-full items-center justify-center text-body-md text-on-surface-variant">
                         加载走势中…
@@ -439,6 +459,15 @@ export default function DesktopHoldings({
                       </div>
                     )}
                   </div>
+
+                  {/* 编辑器 + 操作按钮 */}
+                  {editing === code && (
+                    <FundCostEditor
+                      initial={amount != null || profit != null ? { amount, pnl: profit } : undefined}
+                      onSave={(a, p) => onSaveCost(code, a, p)}
+                      onCancel={onCancelEdit}
+                    />
+                  )}
 
                   <div className="mt-3 flex items-center gap-3">
                     <button
