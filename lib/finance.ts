@@ -36,10 +36,33 @@ async function fetchText(
 }
 
 // ---------------------------------------------------------------------------
-// 基金实时估值（天天基金）
-// 返回格式：jsonpgz({...});
+// 基金实时估值 / 最新净值
+// 数据源降级链：
+//   1) 天天基金盘中估值 fundgz.1234567.com.cn/js/{code}.js  → jsonpgz({...})
+//      —— 该接口不稳定（常返回 404 页面），仅作首选，失败即降级
+//   2) 东财基金档案 pingzhongdata/{code}.js  → Data_netWorthTrend（含最新净值 + 当日涨跌）
+//   3) 东财净值历史 f10/lsjz  → LSJZList（DWJZ + JZZZL）
+// 三者任一成功即可返回；最终都为「最新公布净值」，交易时段显示为「昨净值」。
 // ---------------------------------------------------------------------------
 export async function getFundEstimate(code: string): Promise<FundEstimate> {
+  // 1) 盘中实时估值（首选，失败降级）
+  try {
+    return await getFundEstimateLive(code);
+  } catch {
+    /* fallthrough */
+  }
+  // 2) 基金档案净值（最稳，含历史净值与当日涨跌）
+  try {
+    return await getFundNavFromPingzhong(code);
+  } catch {
+    /* fallthrough */
+  }
+  // 3) 净值历史兜底
+  return await getFundNavFromLsjz(code);
+}
+
+/** 1) 天天基金盘中估值 */
+async function getFundEstimateLive(code: string): Promise<FundEstimate> {
   const text = await fetchText(
     `https://fundgz.1234567.com.cn/js/${code}.js`,
   );
@@ -61,6 +84,75 @@ export async function getFundEstimate(code: string): Promise<FundEstimate> {
     changePct: gszzl,
     updateTime: d.gztime || null,
     trading,
+  };
+}
+
+/** 2) 东财基金档案：解析 Data_netWorthTrend 末两点得最新净值与当日涨跌 */
+async function getFundNavFromPingzhong(code: string): Promise<FundEstimate> {
+  const text = await fetchText(
+    `https://fund.eastmoney.com/pingzhongdata/${code}.js`,
+    { Referer: 'https://fundf10.eastmoney.com/' },
+  );
+  const nameM = text.match(/var\s+fS_name\s*=\s*"([^"]*)"/);
+  const navM = text.match(
+    /(?:var\s+)?Data_netWorthTrend\s*=\s*(\[[\s\S]*?\])\s*;/,
+  );
+  if (!navM) throw new Error('无法解析基金净值数据');
+  const arr = JSON.parse(navM[1]) as {
+    x: number;
+    y: number;
+    equityReturn: number;
+  }[];
+  if (!arr.length) throw new Error('基金净值数据为空');
+  const last = arr[arr.length - 1];
+  const prev = arr.length >= 2 ? arr[arr.length - 2] : last;
+  const nav = Number(last.y);
+  const lastNav = Number(prev.y);
+  const changePct =
+    last.equityReturn != null ? Number(last.equityReturn) : null;
+  const d = new Date(last.x);
+  const updateTime = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(
+    2,
+    '0',
+  )}-${String(d.getDate()).padStart(2, '0')}`;
+  return {
+    code,
+    name: nameM ? nameM[1] : code,
+    nav,
+    lastNav,
+    changePct,
+    updateTime,
+    trading: false,
+  };
+}
+
+/** 3) 东财净值历史兜底 */
+async function getFundNavFromLsjz(code: string): Promise<FundEstimate> {
+  const navText = await fetchText(
+    `https://api.fund.eastmoney.com/f10/lsjz?callback=jQuery&fundCode=${code}&pageIndex=1&pageSize=2&startDate=&endDate=`,
+    { Referer: 'https://fundf10.eastmoney.com/' },
+  );
+  const m = navText.match(/^[^(]*\(([\s\S]*)\)\s*;?\s*$/);
+  const navJson = JSON.parse(m ? m[1] : navText);
+  const list: any[] = navJson?.Data?.LSJZList || [];
+  if (!list.length) throw new Error('暂无基金净值数据');
+  const sorted = [...list].sort((a, b) =>
+    String(a.FSRQ ?? '').localeCompare(String(b.FSRQ ?? '')),
+  );
+  const last = sorted[sorted.length - 1];
+  const prev = sorted.length >= 2 ? sorted[sorted.length - 2] : last;
+  const nav = Number(last.DWJZ);
+  const lastNav = Number(prev.DWJZ);
+  const changePct =
+    last.JZZZL !== '' && last.JZZZL != null ? Number(last.JZZZL) : null;
+  return {
+    code,
+    name: last.SHORTNAME || code,
+    nav,
+    lastNav,
+    changePct,
+    updateTime: last.FSRQ || null,
+    trading: false,
   };
 }
 
