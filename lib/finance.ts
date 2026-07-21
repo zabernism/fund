@@ -36,54 +36,108 @@ async function fetchText(
 }
 
 // ---------------------------------------------------------------------------
-// 基金实时估值 / 最新净值
+// 基金实时估值 / 今日净值
 // 数据源降级链：
-//   1) 天天基金盘中估值 fundgz.1234567.com.cn/js/{code}.js  → jsonpgz({...})
-//      —— 该接口不稳定（常返回 404 页面），仅作首选，失败即降级
-//   2) 东财基金档案 pingzhongdata/{code}.js  → Data_netWorthTrend（含最新净值 + 当日涨跌）
-//   3) 东财净值历史 f10/lsjz  → LSJZList（DWJZ + JZZZL）
-// 三者任一成功即可返回；最终都为「最新公布净值」，交易时段显示为「昨净值」。
+//   1) 场内 ETF/LOF：东财 push2 实时行情 → 今日真实交易价（realtime=true）
+//   2) 场外开放式：新浪基金估值 fu_ 接口 → 今日盘中估算净值（trading=true）
+//   3) 东财基金档案 pingzhongdata/{code}.js → Data_netWorthTrend（最新公布净值，兜底）
+//   4) 东财净值历史 f10/lsjz → LSJZList（DWJZ + JZZZL，兜底）
+// 说明：场外基金盘中只有「估算净值」，收盘后东财公布真实净值；场内直接取实时价。
 // ---------------------------------------------------------------------------
 export async function getFundEstimate(code: string): Promise<FundEstimate> {
-  // 1) 盘中实时估值（首选，失败降级）
+  // 1) 场内实时行情（今日真实交易价）
   try {
-    return await getFundEstimateLive(code);
+    const rt = await getRealtimeQuote(code);
+    if (rt) return rt;
   } catch {
     /* fallthrough */
   }
-  // 2) 基金档案净值（最稳，含历史净值与当日涨跌）
+  // 2) 场外新浪盘中估算（今日净值估算）
+  try {
+    return await getFundEstimateSina(code);
+  } catch {
+    /* fallthrough */
+  }
+  // 3) 东财基金档案净值（最新公布，兜底）
   try {
     return await getFundNavFromPingzhong(code);
   } catch {
     /* fallthrough */
   }
-  // 3) 净值历史兜底
+  // 4) 东财净值历史兜底
   return await getFundNavFromLsjz(code);
 }
 
-/** 1) 天天基金盘中估值 */
-async function getFundEstimateLive(code: string): Promise<FundEstimate> {
+/** 1) 场内 ETF/LOF 实时行情（东财 push2） */
+async function getRealtimeQuote(code: string): Promise<FundEstimate | null> {
+  for (const market of ['1', '0']) {
+    try {
+      const url = `https://push2.eastmoney.com/api/qt/stock/get?secid=${market}.${code}&fields=f43,f60,f57,f58,f169,f170`;
+      const text = await fetchText(url, {
+        Referer: 'https://quote.eastmoney.com/',
+      });
+      const json = JSON.parse(text);
+      const d = json?.data;
+      if (!d || d.f43 == null || d.f43 === '-' || d.f43 === '') {
+        return null; // 非场内基金或停牌
+      }
+      const nav = Number(d.f43) / 1000;
+      const lastNav = Number(d.f60) / 1000;
+      const changePct =
+        d.f170 != null && d.f170 !== '-' ? Number(d.f170) / 100 : null;
+      const now = new Date();
+      const pad = (n: number) => String(n).padStart(2, '0');
+      const updateTime = `${now.getFullYear()}-${pad(
+        now.getMonth() + 1,
+      )}-${pad(now.getDate())} ${pad(now.getHours())}:${pad(
+        now.getMinutes(),
+      )}`;
+      return {
+        code,
+        name: typeof d.f58 === 'string' ? d.f58 : code,
+        nav,
+        lastNav,
+        changePct,
+        updateTime,
+        trading: true,
+        realtime: true,
+      };
+    } catch {
+      /* 试下一个市场 */
+    }
+  }
+  return null;
+}
+
+/** 2) 新浪基金估值（场外开放式基金今日盘中估算） */
+async function getFundEstimateSina(code: string): Promise<FundEstimate> {
   const text = await fetchText(
-    `https://fundgz.1234567.com.cn/js/${code}.js`,
+    `https://hq.sinajs.cn/list=fu_${code}`,
+    { Referer: 'https://finance.sina.com.cn' },
   );
-  const m = text.match(/jsonpgz\(([\s\S]*)\)/);
-  if (!m) throw new Error('无法解析基金估值数据');
-  const d = JSON.parse(m[1]);
-
-  const gsz = d.gsz ? Number(d.gsz) : null;
-  const dwjz = d.dwjz ? Number(d.dwjz) : null;
-  const gszzl =
-    d.gszzl !== '' && d.gszzl != null ? Number(d.gszzl) : null;
-  const trading = gsz != null;
-
+  const m = text.match(/hq_str_fu_\w+\s*=\s*"([^"]*)"/);
+  if (!m) throw new Error('无法解析新浪基金估值数据');
+  const parts = m[1].split(',');
+  // 字段：0名称(GBK) 1时间 2今日估算净值 3最新公布净值 4累计净值 5? 6估算涨跌幅(%) 7日期
+  const estNav = Number(parts[2]);
+  const lastNav = Number(parts[3]);
+  const changePct =
+    parts[6] != null && parts[6] !== '' ? Number(parts[6]) : null;
+  const date = parts[7];
+  const time = parts[1];
+  if (!estNav || Number.isNaN(estNav)) {
+    throw new Error('新浪返回无效估算净值');
+  }
+  const updateTime = date && time ? `${date} ${time}` : date || null;
   return {
-    code: d.fundcode,
-    name: d.name,
-    nav: trading ? gsz : dwjz,
-    lastNav: dwjz,
-    changePct: gszzl,
-    updateTime: d.gztime || null,
-    trading,
+    code,
+    name: code,
+    nav: estNav,
+    lastNav,
+    changePct,
+    updateTime,
+    trading: true,
+    realtime: false,
   };
 }
 
@@ -123,6 +177,7 @@ async function getFundNavFromPingzhong(code: string): Promise<FundEstimate> {
     changePct,
     updateTime,
     trading: false,
+    realtime: false,
   };
 }
 
@@ -153,6 +208,7 @@ async function getFundNavFromLsjz(code: string): Promise<FundEstimate> {
     changePct,
     updateTime: last.FSRQ || null,
     trading: false,
+    realtime: false,
   };
 }
 

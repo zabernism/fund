@@ -9,6 +9,18 @@ import FlashNum from './FlashNum';
 import Sparkline from './Sparkline';
 import { IconChevron, IconPencil, IconTrash } from './icons';
 
+/** 判断估值时间是否为今天（用于「今日净值 / 昨净值」标签） */
+function isTodayDate(s?: string | null): boolean {
+  if (!s) return false;
+  const d = s.slice(0, 10);
+  const now = new Date();
+  const pad = (n: number) => String(n).padStart(2, '0');
+  const today = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(
+    now.getDate(),
+  )}`;
+  return d === today;
+}
+
 export function FundCostEditor({
   initial,
   onSave,
@@ -172,7 +184,13 @@ export default function FundRow({
           </div>
           <div className="font-mono-data text-[11px] text-[var(--muted)]">
             {code}
-            {fund?.trading ? ' · 估算' : ' · 昨净值'}
+            {fund?.trading
+              ? fund.realtime
+                ? ' · 实时'
+                : ' · 估算'
+              : isTodayDate(fund?.updateTime)
+                ? ' · 今日净值'
+                : ' · 昨净值'}
           </div>
         </div>
 

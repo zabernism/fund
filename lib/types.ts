@@ -11,6 +11,8 @@ export interface FundEstimate {
   updateTime: string | null;
   /** 是否处于可估算的交易时段 */
   trading: boolean;
+  /** 是否场内实时价：true=场内ETF/LOF实时交易价；false=场外估算净值或最新公布净值 */
+  realtime: boolean;
 }
 
 export interface FundSearchResult {
