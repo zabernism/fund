@@ -19,6 +19,7 @@ const UA =
 async function fetchText(
   url: string,
   headers: Record<string, string> = {},
+  encoding: 'utf8' | 'gbk' = 'utf8',
 ): Promise<string> {
   const ctrl = new AbortController();
   const timer = setTimeout(() => ctrl.abort(), 10_000);
@@ -29,7 +30,9 @@ async function fetchText(
       cache: 'no-store',
     });
     if (!res.ok) throw new Error(`上游返回 HTTP ${res.status}`);
-    return await res.text();
+    const buf = Buffer.from(await res.arrayBuffer());
+    if (encoding === 'gbk') return new TextDecoder('gbk').decode(buf);
+    return buf.toString('utf8');
   } finally {
     clearTimeout(timer);
   }
@@ -114,6 +117,7 @@ async function getFundEstimateSina(code: string): Promise<FundEstimate> {
   const text = await fetchText(
     `https://hq.sinajs.cn/list=fu_${code}`,
     { Referer: 'https://finance.sina.com.cn' },
+    'gbk',
   );
   const m = text.match(/hq_str_fu_\w+\s*=\s*"([^"]*)"/);
   if (!m) throw new Error('无法解析新浪基金估值数据');
@@ -131,7 +135,7 @@ async function getFundEstimateSina(code: string): Promise<FundEstimate> {
   const updateTime = date && time ? `${date} ${time}` : date || null;
   return {
     code,
-    name: code,
+    name: parts[0] || code,
     nav: estNav,
     lastNav,
     changePct,
